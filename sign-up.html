@@ -3,32 +3,33 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Landing Page - FlightTally</title>
+    <title>Sign Up Page - FlightTally</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
     <header>
         <div id="nav">
-            <a href="login.html">Login</a>
+            <a href="index.html">Login</a>
             <a href="sign-up.html">Sign Up</a>
             <a href="NoLinkYet">View Demo</a>
         </div>
     </header>
 
     <div id="login-area" class="center">
-        <h1>FlightTally - Login</h1>
+        <h1>FlightTally - Sign Up</h1>
         <svg width="200" height="200" viewBox="0 0 24 24" style="background-color: #e2f4ff; border-radius: 8px;">
             <!-- Airplane Icon -->
             <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1-1-1s-1 .17-1 1V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5L21 16z" fill="#0277bd" />
         </svg>
 
-        <form id="login-form">
+        <form id="sign-up-form">
+            <input type="text" placeholder="First Name" name="first-name-input" required>
+            <input type="text" placeholder="Last Name" name="last-name-input" required>
             <input type="text" placeholder="Email" name="email-input" required>
             <input type="password" placeholder="Password" name="password-input" required>
             <button type="submit">Submit Form</button>
         </form>
-
     </div>
 
     <footer>
