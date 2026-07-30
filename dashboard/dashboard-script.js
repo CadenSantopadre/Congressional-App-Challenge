@@ -42,6 +42,7 @@ function renderFleet() {
                 <h3>${plane.tail}</h3>
                 <p>${plane.model}</p>
             </div>
+            <button class="edit-button" id=${plane.tail}>...</button>
         `;
 
         aircraftGrid.appendChild(card);
@@ -58,15 +59,15 @@ openAddBtn.addEventListener('click', () => {
     }
 });
 
-const aircraftModal = document.getElementById('aircraftModal');
+const addAircraftModal = document.getElementById('addAircraftModal');
 const closeBtn = document.getElementById('closeBtn');
 
 openAddBtn.addEventListener('click', () => {
-    aircraftModal.classList.add('active');
+    addAircraftModal.classList.add('active');
 });
 
 closeBtn.addEventListener('click', () => {
-    aircraftModal.classList.remove('active');
+    addAircraftModal.classList.remove('active');
 });
 
 const aircraftForm = document.getElementById('aircraftForm');
@@ -80,6 +81,58 @@ aircraftForm.addEventListener('submit', (event) => {
     addAircraft(tailInput, nameInput);
 
     aircraftForm.reset();
-    aircraftModal.classList.remove('active');
+    addAircraftModal.classList.remove('active');
 });
 
+let currentEditedPlane = null;
+const editAircraftModal = document.getElementById('editAircraftModal');
+const closeEditBtn = document.getElementById('closeEditBtn');
+const editAircraftForm = document.getElementById('editAircraftForm');
+
+aircraftGrid.addEventListener('click', (event) => {
+    if (event.target.classList.contains('edit-button')) {
+        const targetTail = event.target.id;
+        const planeToEdit = fleet.find(p => p.tail === targetTail);
+
+        if (planeToEdit) {
+            currentEditingTail = targetTail;
+            
+            editAircraftForm.elements['edit-tail-input'].value = planeToEdit.tail;
+            editAircraftForm.elements['edit-name-input'].value = planeToEdit.model;
+            
+            editAircraftModal.classList.add('active');
+        }
+    }
+});
+
+closeEditBtn.addEventListener('click', () => {
+    editAircraftModal.classList.remove('active');
+});
+
+editAircraftForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    
+
+    const updatedTail = editAircraftForm.elements['edit-tail-input'].value.trim();
+    const updatedModel = editAircraftForm.elements['edit-name-input'].value.trim();
+
+
+    if (!updatedTail || !updatedModel) {
+
+        fleet = fleet.filter(plane => plane.tail !== currentEditingTail);
+    } else {
+
+        fleet = fleet.map(plane => {
+            if (plane.tail === currentEditingTail) {
+                return { ...plane, tail: updatedTail, model: updatedModel };
+            }
+            return plane;
+        });
+    }
+
+    localStorage.setItem('myFleet', JSON.stringify(fleet));
+    renderFleet();
+    
+    editAircraftForm.reset();
+    editAircraftModal.classList.remove('active');
+});

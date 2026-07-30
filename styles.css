@@ -8,9 +8,25 @@ body {
   min-height: 100vh;
 }
 
+.dashboard-layout {
+    display: flex;
+}
+
+
 
 a {
     color: inherit;
+}
+
+.text-button {
+    color: inherit;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    cursor: pointer;
+    text-decoration: underline;
 }
 
 header {
@@ -23,7 +39,7 @@ header {
 #nav {
     display: flex;
     justify-content: space-between;
-    width: 90%;
+    width: 900%;
     padding: 28px;
 }
 
@@ -100,4 +116,62 @@ footer {
     padding: 20px;
     border-radius: 8px;
     width: 300px;
+}
+
+.aircraft-grid {
+    margin-top: 30px;
+}
+
+
+.sidebar {
+    width: 260px;
+    min-height: 100vh;
+    background-color: #1e293b;
+    color: white;
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+
+.sidebar h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    padding-left: 8px;
+    color: #38bdf8;
+}
+
+
+.sidebar sidenav {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.sidebar sidenav a {
+    color: #cbd5e1;
+    text-decoration: none;
+    padding: 12px;
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+
+.sidebar sidenav a:hover {
+    background-color: #334155;
+    color: white;
+}
+
+
+.sidebar sidenav a.active {
+    background-color: #0284c7;
+    color: white;
+}
+
+.main-container {
+  flex: 1; 
+  display: flex;
+  flex-direction: column;
 }

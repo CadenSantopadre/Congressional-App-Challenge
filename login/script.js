@@ -55,6 +55,7 @@ if (loginForm) {
 
         if (matchedUser) { //We get data by doing matchedUser.(asking data)
             alert(`Login successful! Welcome back, ${matchedUser.firstName}!`);
+            window.location.href = "../dashboard.html";
           
         } else {
             alert('Incorrect email or password. Please try again.');

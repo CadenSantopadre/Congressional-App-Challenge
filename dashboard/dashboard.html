@@ -4,30 +4,34 @@
 <head>
     <meta charset="UTF-8">
     <title>Dashboard - FlightTally</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="../styles.css">
 </head>
 
 <body>
     <div class="dashboard-layout">
     <sidebar class="sidebar">
-        <h2>Logbook</h2>
+        <h2>FlightTally</h2>
         <sidenav>
             <a href="#" class="active">Aircraft</a>
             <a href="#">Checklists</a>
         </sidenav>
     </sidebar>
 
+<!--Start of airframes page-->
+<div class="active main-container">
     <main class="content">
         <header class="content-header">
-            <h1>Airframes</h1>
+            <h1>Aircraft</h1>
             <button id="openAdd">+ New Aircraft</button>
+            <hr>
         </header>
 
         <div id="aircraftGrid" class="aircraft-grid"></div>
     </main>
 </div>
+</div>
 
-<div id="aircraftModal" class="modal">
+<div id="addAircraftModal" class="modal">
     <div class="modal-content">
         <button type="button" id="closeBtn">X</button>
         <h2>Add New Aircraft</h2>
@@ -38,6 +42,22 @@
         </form>
     </div>
 </div>
+
+<div id="editAircraftModal" class="modal">
+  <div class="modal-content">
+    <span id="closeEditBtn" style="cursor:pointer;">&times;</span>
+        <h2>Edit Aircraft</h2>
+        <p>Leave everything blank to delete it</p>
+        <form id="editAircraftForm">
+            <input type="text" name="edit-tail-input">
+            <input type="text" name="edit-name-input">
+            <button type="submit">Save Changes</button>
+        </form>
+  </div>
+</div>
+
+<!--Start of Checklists Page-->
+
 
 </body>
 <script src="dashboard-script.js"></script>
