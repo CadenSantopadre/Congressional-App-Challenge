@@ -53,9 +53,8 @@ if (loginForm) {
 
         const matchedUser = existingUsers.find(user => user.email === email && user.password === password);
 
-        if (matchedUser) { //We get data by doing matchedUser.(asking data)
-            alert(`Login successful! Welcome back, ${matchedUser.firstName}!`);
-            window.location.href = "../dashboard.html";
+        if (matchedUser) {
+            window.location.href = "/dashboard/dashboard.html";
           
         } else {
             alert('Incorrect email or password. Please try again.');
