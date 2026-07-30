@@ -133,16 +133,36 @@ const aircraftButton = document.getElementById('aircraftButton');
 const checklistButton = document.getElementById('checklistButton');
 const flightButton = document.getElementById('flightButton');
 
+const aircraftDiv = document.getElementById('aircraftDiv');
+const checklistDiv = document.getElementById('checklistDiv');
+const flightDiv = document.getElementById('flightDiv');
+
 aircraftButton.addEventListener('click', () => {
     aircraftButton.classList.add('active');
     checklistButton.classList.remove('active');
     flightButton.classList.remove('active');
+
+    aircraftDiv.classList.add('active');
+    checklistDiv.classList.remove('active');
+    checklistDiv.classList.add('hidden');
+    flightDiv.classList.remove('active');
+    flightDiv.classList.add('hidden');
+
+    aircraftDiv.classList.remove('hidden');
 });
 
 checklistButton.addEventListener('click', () => {
     aircraftButton.classList.remove('active');
     checklistButton.classList.add('active');
     flightButton.classList.remove('active');
+
+    aircraftDiv.classList.remove('active');
+    aircraftDiv.classList.add('hidden');
+    checklistDiv.classList.add('active');
+    flightDiv.classList.remove('active');
+    flightDiv.classList.add('hidden');
+
+    checklistDiv.classList.remove('hidden');
 });
 
 
@@ -150,4 +170,13 @@ flightButton.addEventListener('click', () => {
     aircraftButton.classList.remove('active');
     checklistButton.classList.remove('active');
     flightButton.classList.add('active');
+
+    aircraftDiv.classList.remove('active');
+    aircraftDiv.classList.add('hidden');
+    checklistDiv.classList.remove('active');
+    checklistDiv.classList.add('hidden');
+    flightDiv.classList.add('active');
+
+    flightDiv.classList.remove('hidden');
 });
+

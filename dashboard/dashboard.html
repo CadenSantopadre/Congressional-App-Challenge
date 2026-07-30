@@ -12,14 +12,14 @@
     <sidebar class="sidebar">
         <h2>FlightTally</h2>
         <sidenav>
-            <button id="aircraftButton" class="active">Aircraft</a>
-            <button id="checklistButton">Checklists</a>
+            <button id="aircraftButton" class="active">Aircraft</button>
+            <button id="checklistButton">Checklists</button>
             <button id="flightButton">Flights</button>
         </sidenav>
     </sidebar>
 
 <!--Start of airframes page-->
-<div class="active main-container">
+<div id="aircraftDiv" class="active main-container">
     <main class="content">
         <header class="content-header">
             <h1>Aircraft</h1>
@@ -30,7 +30,7 @@
         <div id="aircraftGrid" class="aircraft-grid"></div>
     </main>
 </div>
-</div>
+
 
 <div id="addAircraftModal" class="modal">
     <div class="modal-content">
@@ -60,10 +60,21 @@
 </div>
 
 <!--Start of Checklists Page-->
-<div class="hidden main-container">
+<div id="checklistDiv" class="hidden main-container">
     <main class="content">
         <header class="content-header">
             <h1>Checklists</h1>
+            <button id="resetChecklistsBtn">Reset All</button>
+            <hr>
+        </header>
+    </main>
+</div>
+
+<!--Start of Flights Page-->
+<div id="flightDiv" class="hidden main-container">
+    <main class="content">
+        <header class="content-header">
+            <h1>Flights</h1>
             <hr>
         </header>
     </main>
