@@ -1,0 +1,44 @@
+body { 
+  background: #e2f4ff; 
+  font-family: Verdana; 
+  margin: 0; 
+  
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+
+a {
+    color: inherit;
+}
+
+header {
+    height: 50px;
+    background: #000000;
+    color: #ffffff;
+    border-bottom: 6px double #0277bd;
+}
+
+#nav {
+    display: flex;
+    justify-content: space-between;
+    width: 90%;
+    padding: 28px;
+}
+
+.center { 
+  display: flex; 
+  flex-direction: column; 
+  justify-content: center; 
+  align-items: center; 
+  
+  flex: 1;
+}
+
+
+footer {
+    background: #000000;
+    color: #ffffff;
+    border-top: 6px double #0277bd;
+}
