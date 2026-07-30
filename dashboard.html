@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard - FlightTally</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="dashboard-layout">
+    <sidebar class="sidebar">
+        <h2>Logbook</h2>
+        <sidenav>
+            <a href="#" class="active">Aircraft</a>
+            <a href="#">Checklists</a>
+        </sidenav>
+    </sidebar>
+
+    <main class="content">
+        <header class="content-header">
+            <h1>Airframes</h1>
+            <button id="openAdd">+ New Aircraft</button>
+        </header>
+
+        <div id="aircraftGrid" class="aircraft-grid"></div>
+    </main>
+</div>
+
+<div id="aircraftModal" class="modal">
+    <div class="modal-content">
+        <button type="button" id="closeBtn">X</button>
+        <h2>Add New Aircraft</h2>
+        <form id="aircraftForm">
+            <input type="text" placeholder="Plane Name" name="name-input" required>
+            <input type="text" placeholder="Tail Number" name="tail-input" required>
+            <button type="submit">Add Plane</button>
+        </form>
+    </div>
+</div>
+
+</body>
+<script src="dashboard-script.js"></script>
+</html>
