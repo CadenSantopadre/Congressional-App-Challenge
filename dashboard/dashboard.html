@@ -12,8 +12,9 @@
     <sidebar class="sidebar">
         <h2>FlightTally</h2>
         <sidenav>
-            <a href="#" class="active">Aircraft</a>
-            <a href="#">Checklists</a>
+            <button id="aircraftButton" class="active">Aircraft</a>
+            <button id="checklistButton">Checklists</a>
+            <button id="flightButton">Flights</button>
         </sidenav>
     </sidebar>
 
@@ -38,6 +39,7 @@
         <form id="aircraftForm">
             <input type="text" placeholder="Plane Name" name="name-input" required>
             <input type="text" placeholder="Tail Number" name="tail-input" required>
+            <input type="number" placeholder="Flight Hours" name="hour-input">
             <button type="submit">Add Plane</button>
         </form>
     </div>
@@ -51,13 +53,21 @@
         <form id="editAircraftForm">
             <input type="text" name="edit-tail-input">
             <input type="text" name="edit-name-input">
+            <input type="number" name="edit-hour-input">
             <button type="submit">Save Changes</button>
         </form>
   </div>
 </div>
 
 <!--Start of Checklists Page-->
-
+<div class="hidden main-container">
+    <main class="content">
+        <header class="content-header">
+            <h1>Checklists</h1>
+            <hr>
+        </header>
+    </main>
+</div>
 
 </body>
 <script src="dashboard-script.js"></script>

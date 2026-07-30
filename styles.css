@@ -112,11 +112,12 @@ footer {
 }
 
 .modal-content {
-    background: white;
-    padding: 20px;
-    border-radius: 8px;
-    width: 300px;
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  width: 300px;
 }
+
 
 .aircraft-grid {
     margin-top: 30px;
@@ -149,8 +150,8 @@ footer {
     gap: 8px;
 }
 
-.sidebar sidenav a {
-    color: #cbd5e1;
+.sidebar sidenav button {
+    color: #000000;
     text-decoration: none;
     padding: 12px;
     border-radius: 6px;
@@ -159,13 +160,13 @@ footer {
 }
 
 
-.sidebar sidenav a:hover {
+.sidebar sidenav button:hover {
     background-color: #334155;
     color: white;
 }
 
 
-.sidebar sidenav a.active {
+.sidebar sidenav button.active {
     background-color: #0284c7;
     color: white;
 }
