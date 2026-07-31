@@ -77,7 +77,29 @@
             <h1>Flights</h1>
             <hr>
         </header>
+        <button id="addFlight">+ Add Flight</button>
+        <div id="flightGrid" class="aircraft-grid"></div>
     </main>
+</div>
+
+<div id="addFlightModal" class="modal">
+    <div class="modal-content">
+        <button type="button" id="closeFlightBtn">X</button>
+        <h2>Add New Flight</h2>
+        <form id="flightForm">
+            <select name="Planes" id="planeDrop"></select>
+            <input type="date" placeholder="Date" name="date-input">
+            <input type="text" placeholder="ORIG" name="origin-input">
+            <input type="text" placeholder="DEST" name="dest-input">
+            <input type="number" placeholder="Flight Hours" name="hour-input">
+            <select name="Command" id="commandDrop">
+                <option value="PIC">PIC</option>
+                <option value="SIC">SIC</option>
+                <option value="Dual">Dual Receieved</option>
+            </select>
+            <button type="submit">Log Flight</button>
+        </form>
+    </div>
 </div>
 
 </body>

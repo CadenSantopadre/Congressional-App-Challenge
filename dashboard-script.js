@@ -17,6 +17,7 @@ function addAircraft(tailNumber, nameType, hourNumber) {
     fleet.push(newPlane);
     localStorage.setItem('myFleet', JSON.stringify(fleet));
     renderFleet();
+    populateAircraftDropdown()
 }
 
 
@@ -178,5 +179,150 @@ flightButton.addEventListener('click', () => {
     flightDiv.classList.add('active');
 
     flightDiv.classList.remove('hidden');
+    renderFlights();
 });
 
+
+const addFlightButton = document.getElementById('addFlight');
+const addFlightModal = document.getElementById('addFlightModal');
+const closeFlightBtn = document.getElementById('closeFlightBtn');
+const flightForm = document.getElementById('flightForm');
+
+const flightGrid = document.getElementById('flightGrid');
+let logbook = JSON.parse(localStorage.getItem('myLogbook')) || [];
+
+function populateAircraftDropdown() {
+    const selectDropdown = document.getElementById("planeDrop");
+    if (!selectDropdown) return;
+  
+        selectDropdown.innerHTML = '<option value="">-- Select an Aircraft --</option>';
+        fleet.forEach(plane => {
+            const option = new Option(`${plane.tail} (${plane.name})`, plane.tail);
+            selectDropdown.add(option);
+        });
+}
+
+addFlightButton.addEventListener('click', () => {
+    populateAircraftDropdown();
+    addFlightModal.classList.add('active');
+});
+
+closeFlightBtn.addEventListener('click', () => {
+    addFlightModal.classList.remove('active');
+});
+
+flightForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+
+    // 1. Gather all values from the form inputs
+    const selectedTail = document.getElementById('planeDrop').value;
+    const loggedHours = parseFloat(flightForm.elements['hour-input'].value);
+    const dateInput = flightForm.elements['date-input'].value;
+    const originInput = flightForm.elements['origin-input'].value.trim().toUpperCase();
+    const destInput = flightForm.elements['dest-input'].value.trim().toUpperCase();
+    const commandRole = document.getElementById('commandDrop').value;
+
+    // Validation checks
+    if (!selectedTail) {
+        alert("Please select an aircraft.");
+        return;
+    }
+    if (isNaN(loggedHours) || loggedHours <= 0) {
+        alert("Please enter a valid number of flight hours.");
+        return;
+    }
+
+    // 2. Keep your existing logic: Update the aircraft's lifetime hours
+    const planeToUpdate = fleet.find(plane => plane.tail === selectedTail);
+    if (planeToUpdate) {
+        const currentHours = parseFloat(planeToUpdate.hours) || 0;
+        planeToUpdate.hours = currentHours + loggedHours;
+        localStorage.setItem('myFleet', JSON.stringify(fleet));
+        renderFleet();
+    }
+
+    // 3. New logic: Create the structured flight object
+    const newFlight = {
+        id: Date.now(),             // Unique identifier
+        tail: selectedTail,         // Links flight back to the plane
+        date: dateInput || new Date().toISOString().split('T')[0], // Fallback to today if blank
+        origin: originInput || '---',
+        dest: destInput || '---',
+        hours: loggedHours,
+        command: commandRole
+    };
+
+    // 4. Push to logbook array and save to its own LocalStorage key
+    logbook.push(newFlight);
+    localStorage.setItem('myLogbook', JSON.stringify(logbook));
+    
+    // 5. Update the UI grid
+    renderFlights();
+
+    // Reset and close UI modal
+    flightForm.reset();
+    addFlightModal.classList.remove('active');
+});
+
+populateAircraftDropdown();
+
+function renderFlights() {
+    flightGrid.innerHTML = ''; // Clear old cards
+
+    logbook.forEach(flight => {
+        const card = document.createElement('div');
+        card.className = 'aircraft-card'; // Reuse your CSS styles
+        
+        card.innerHTML = `
+            <div class="aircraft-info">
+                <button id="${flight.id}" class="removeFlight">Remove Flight</button>
+                <h3>${flight.origin} to ${flight.dest}</h3>
+                <p>Date: ${flight.date}</p>
+                <p>Tail: ${flight.tail}</p>
+                <p>Hours: ${flight.hours}</p>
+                <p>Position: ${flight.command}</p>
+            </div>
+        `;
+        flightGrid.appendChild(card);
+    });
+}
+
+// Listen to the entire grid container
+flightGrid.addEventListener('click', (event) => {
+    // Check if what the user clicked was actually a remove button
+    if (event.target.classList.contains('removeFlight')) {
+        
+        // 1. Get the unique ID from the data attribute (convert string to number)
+        const flightIdToRemove = Number(event.target.getAttribute('id'));
+        
+        // 2. Find the specific flight object BEFORE filtering it out of the array
+        const flightToDelete = logbook.find(flight => flight.id === flightIdToRemove);
+        
+        if (flightToDelete) {
+            // 3. Find the corresponding aircraft in your fleet array
+            const planeToUpdate = fleet.find(plane => plane.tail === flightToDelete.tail);
+            
+            if (planeToUpdate) {
+                // 4. Subtract the flight hours from the aircraft's current hours
+                const currentHours = parseFloat(planeToUpdate.hours) || 0;
+                const updatedHours = currentHours - parseFloat(flightToDelete.hours);
+                
+                // Prevent negative hours by defaulting to 0
+                planeToUpdate.hours = updatedHours > 0 ? updatedHours : 0;
+                
+                // 5. Save the updated fleet to LocalStorage and redraw the aircraft panel
+                localStorage.setItem('myFleet', JSON.stringify(fleet));
+                renderFleet();
+            }
+        }
+
+        // 6. Filter out the flight with that specific ID from the logbook
+        logbook = logbook.filter(flight => flight.id !== flightIdToRemove);
+        
+        // 7. Save the updated logbook array back to LocalStorage
+        localStorage.setItem('myLogbook', JSON.stringify(logbook));
+        
+        // 8. Refresh the UI cards instantly
+        renderFlights();
+    }
+});
