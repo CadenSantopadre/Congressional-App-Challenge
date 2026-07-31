@@ -174,7 +174,6 @@ flightButton.addEventListener('click', () => {
 
     aircraftDiv.classList.remove('active');
     aircraftDiv.classList.add('hidden');
-    checklistDiv.classList.remove('active');
     checklistDiv.classList.add('hidden');
     flightDiv.classList.add('active');
 
