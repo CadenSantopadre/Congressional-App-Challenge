@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Dashboard - FlightTally</title>
-    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
@@ -96,6 +96,11 @@
                 <option value="PIC">PIC</option>
                 <option value="SIC">SIC</option>
                 <option value="Dual">Dual Receieved</option>
+            </select>
+            <select name="Time" id="timeDrop">
+                <option value="DAY">DAY</option>
+                <option value="NIGHT-full">NIGHT (Full Stop)</option>
+                <option value="NIGHT-touch">NIGHT (Touch-And-Go)</option>
             </select>
             <button type="submit">Log Flight</button>
         </form>

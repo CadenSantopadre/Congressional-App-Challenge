@@ -221,6 +221,7 @@ flightForm.addEventListener('submit', (event) => {
     const originInput = flightForm.elements['origin-input'].value.trim().toUpperCase();
     const destInput = flightForm.elements['dest-input'].value.trim().toUpperCase();
     const commandRole = document.getElementById('commandDrop').value;
+    const timeInput = document.getElementById('timeDrop').value;
 
     // Validation checks
     if (!selectedTail) {
@@ -249,7 +250,8 @@ flightForm.addEventListener('submit', (event) => {
         origin: originInput || '---',
         dest: destInput || '---',
         hours: loggedHours,
-        command: commandRole
+        command: commandRole,
+        time: timeInput,
     };
 
     // 4. Push to logbook array and save to its own LocalStorage key
@@ -277,7 +279,7 @@ function renderFlights() {
             <div class="aircraft-info">
                 <button id="${flight.id}" class="removeFlight">Remove Flight</button>
                 <h3>${flight.origin} to ${flight.dest}</h3>
-                <p>Date: ${flight.date}</p>
+                <p>Date: ${flight.date} at ${flight.time}</p>
                 <p>Tail: ${flight.tail}</p>
                 <p>Hours: ${flight.hours}</p>
                 <p>Position: ${flight.command}</p>
