@@ -181,3 +181,12 @@ footer {
     display: none !important;
 }
 
+/* Container that forces inputs side-by-side */
+.input-row {
+  display: flex;
+}
+
+/* Controls the width of the individual inputs */
+.hobbs-tach {
+  width: 100%;
+}

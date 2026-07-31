@@ -15,6 +15,7 @@
             <button id="aircraftButton" class="active">Aircraft</button>
             <button id="checklistButton">Checklists</button>
             <button id="flightButton">Flights</button>
+            <button id="maintenanceButton">Maintenance</button>
         </sidenav>
     </sidebar>
 
@@ -83,28 +84,115 @@
 </div>
 <!--Add Flight Modal-->
 <div id="addFlightModal" class="modal">
-    <div class="modal-content">
-        <button type="button" id="closeFlightBtn">X</button>
-        <h2>Add New Flight</h2>
-        <form id="flightForm">
-            <select name="Planes" id="planeDrop"></select>
-            <input type="date" placeholder="Date" name="date-input">
-            <input type="text" placeholder="ORIG" name="origin-input">
-            <input type="text" placeholder="DEST" name="dest-input">
-            <input type="number" placeholder="Flight Hours" name="hour-input">
-            <select name="Command" id="commandDrop">
-                <option value="PIC">PIC</option>
-                <option value="SIC">SIC</option>
-                <option value="Dual">Dual Receieved</option>
+  <div class="modal-content">
+    <button type="button" id="closeFlightBtn">X</button>
+    <h2>Add New Flight</h2>
+    <form id="flightForm">
+      <select name="Planes" id="planeDrop"></select>
+      <input type="date" placeholder="Date" name="date-input">
+      <input type="text" placeholder="ORIG" name="origin-input">
+      <input type="text" placeholder="DEST" name="dest-input">
+
+        <div class="input-row">
+            <input type="number" placeholder="Starting Hobbs Time" name="hobbs-start" class="hobbs-tach">
+            <input type="number" placeholder="Ending Hobbs Time" name="hobbs-end" class="hobbs-tach">
+        </div>
+
+        <div class="input-row">
+            <input type="number" placeholder="Starting Tach Time" name="tach-start" class="hobbs-tach">
+            <input type="number" placeholder="Ending Tach Time" name="tach-end" class="hobbs-tach">
+        </div>
+
+      
+      <select name="Command" id="commandDrop">
+        <option value="PIC">PIC</option>
+        <option value="SIC">SIC</option>
+        <option value="Dual">Dual Receieved</option>
+      </select>
+      
+      <select name="Time" id="timeDrop">
+        <option value="DAY">DAY</option>
+        <option value="NIGHT-full">NIGHT (Full Stop)</option>
+        <option value="NIGHT-touch">NIGHT (Touch-And-Go)</option>
+      </select>
+
+      <details class="ifr-details">
+        <summary>IFR Details</summary>
+        <div class="ifr-fields">
+            <input type="number" name="approaches-count" min="0" placeholder="Approach Count">
+          
+            <select name="approach-type" id="approachType">
+                <option value="ILS">ILS</option>
+                <option value="RNAV">RNAV (GPS)</option>
+                <option value="VOR">VOR</option>
+                <option value="LOC">LOC</option>
+                <option value="NDB">NDB</option>
+                <option value="LDA">LDA / SDF</option>
             </select>
-            <select name="Time" id="timeDrop">
-                <option value="DAY">DAY</option>
-                <option value="NIGHT-full">NIGHT (Full Stop)</option>
-                <option value="NIGHT-touch">NIGHT (Touch-And-Go)</option>
-            </select>
-            <button type="submit">Log Flight</button>
-        </form>
-    </div>
+            
+            <label>Holds Logged?
+            <input type="checkbox" name="holds-logged">
+            </label>
+
+            <br>
+
+            <label>Intercept Course?
+            <input type="checkbox" name="intercept">
+            </label>
+        </div>
+      </details>
+
+      <button type="submit">Log Flight</button>
+    </form>
+  </div>
+</div>
+
+<!--Start of maintenance div-->
+<div id="maintenanceDiv" class="hidden main-container">
+    <main class="content">
+        <header class="content-header">
+            <h1>Maintenance</h1>
+            <button id="openAddMaintenance">New Maintenance Item</button>
+            <hr>
+        </header>
+        <div id="maintenanceGrid" class="aircraft-grid"></div>
+    </main>
+</div>
+
+<!--Start of maintenace Modal-->
+<div id="addMaintenanceModal" class="modal">
+  <div class="modal-content">
+    <button type="button" id="closeMaintBtn">X</button>
+    <h2>Add Maintenance Item</h2>
+    <form id="maintenanceForm">
+      <select name="Planes" id="maintPlaneDrop"></select>
+
+      <select name="maint-type" id="maintTypeDrop">
+        <option value="100hr">100 Hour</option>
+        <option value="Annual">Annual</option>
+        <option value="Oil Change">Oil Change</option>
+        <option value="Transponder">Transponder Check</option>
+        <option value="Pitot-Static">Pitot-Static/Altimeter</option>
+        <option value="VOR Check">VOR Check</option>
+        <option value="ELT Battery">ELT Battery</option>
+        <option value="Custom">Custom</option>
+      </select>
+
+      <input type="text" placeholder="Description" name="maint-description">
+
+      <select name="interval-type" id="intervalTypeDrop">
+        <option value="hours">Hours-Based (Tach)</option>
+        <option value="calendar">Calendar-Based</option>
+      </select>
+
+      <input type="number" placeholder="Interval Value (hrs or months)" name="interval-value" required>
+
+      <input type="number" placeholder="Tach at Last Done" name="last-done-hours" class="hours-field">
+      <input type="date" placeholder="Date Last Done" name="last-done-date" class="calendar-field">
+
+      <button type="submit">Add Item</button>
+    </form>
+  </div>
 </div>
 
 </body>

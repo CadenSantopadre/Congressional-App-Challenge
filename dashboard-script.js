@@ -131,56 +131,84 @@ editAircraftForm.addEventListener('submit', (event) => {
 const aircraftButton = document.getElementById('aircraftButton');
 const checklistButton = document.getElementById('checklistButton');
 const flightButton = document.getElementById('flightButton');
+const maintenanceButton = document.getElementById('maintenanceButton');
 
 const aircraftDiv = document.getElementById('aircraftDiv');
 const checklistDiv = document.getElementById('checklistDiv');
 const flightDiv = document.getElementById('flightDiv');
+const maintenanceDiv = document.getElementById('maintenanceDiv');
 
-aircraftButton.addEventListener('click', () => { //When switching tabs on sidebar, change the div form hidden to not-hidden
-    //I got mixed up with some stuff so there's unnecessary actives but who cares
-    aircraftButton.classList.add('active');
-    checklistButton.classList.remove('active');
-    flightButton.classList.remove('active');
+aircraftButton.addEventListener('click', () => { 
+    // When switching tabs on sidebar, change the div form hidden to not-hidden 
+    aircraftButton.classList.add('active'); 
+    checklistButton.classList.remove('active'); 
+    flightButton.classList.remove('active'); 
+    maintenanceButton.classList.remove('active'); 
 
-    aircraftDiv.classList.add('active');
-    aircraftDiv.classList.remove('hidden');
-    checklistDiv.classList.remove('active');
-    checklistDiv.classList.add('hidden');
-    flightDiv.classList.remove('active');
-    flightDiv.classList.add('hidden');
+    aircraftDiv.classList.add('active'); 
+    aircraftDiv.classList.remove('hidden'); 
+    checklistDiv.classList.remove('active'); 
+    checklistDiv.classList.add('hidden'); 
+    flightDiv.classList.remove('active'); 
+    flightDiv.classList.add('hidden'); 
+    maintenanceDiv.classList.remove('active');
+    maintenanceDiv.classList.add('hidden');
+}); 
 
-    aircraftDiv.classList.remove('hidden');
-});
+checklistButton.addEventListener('click', () => { 
+    aircraftButton.classList.remove('active'); 
+    checklistButton.classList.add('active'); 
+    flightButton.classList.remove('active'); 
+    maintenanceButton.classList.remove('active'); 
 
-checklistButton.addEventListener('click', () => {
-    aircraftButton.classList.remove('active');
-    checklistButton.classList.add('active');
-    flightButton.classList.remove('active');
-
-    aircraftDiv.classList.remove('active');
-    aircraftDiv.classList.add('hidden');
-    checklistDiv.classList.add('active');
-    flightDiv.classList.remove('active');
-    flightDiv.classList.add('hidden');
-
+    aircraftDiv.classList.remove('active'); 
+    aircraftDiv.classList.add('hidden'); 
+    checklistDiv.classList.add('active'); 
     checklistDiv.classList.remove('hidden');
-    renderChecklists();
+    flightDiv.classList.remove('active'); 
+    flightDiv.classList.add('hidden'); 
+    maintenanceDiv.classList.remove('active');
+    maintenanceDiv.classList.add('hidden');
+
+    renderChecklists(); 
+}); 
+
+flightButton.addEventListener('click', () => { 
+    aircraftButton.classList.remove('active'); 
+    checklistButton.classList.remove('active'); 
+    flightButton.classList.add('active'); 
+    maintenanceButton.classList.remove('active'); 
+
+    aircraftDiv.classList.remove('active'); 
+    aircraftDiv.classList.add('hidden'); 
+    checklistDiv.classList.remove('active');
+    checklistDiv.classList.add('hidden'); 
+    flightDiv.classList.add('active'); 
+    flightDiv.classList.remove('hidden'); 
+    maintenanceDiv.classList.remove('active');
+    maintenanceDiv.classList.add('hidden');
+
+    renderFlights(); 
+}); 
+
+maintenanceButton.addEventListener('click', () => { 
+    aircraftButton.classList.remove('active'); 
+    checklistButton.classList.remove('active'); 
+    flightButton.classList.remove('active'); 
+    maintenanceButton.classList.add('active'); 
+
+    aircraftDiv.classList.remove('active'); 
+    aircraftDiv.classList.add('hidden'); 
+    checklistDiv.classList.remove('active'); 
+    checklistDiv.classList.add('hidden'); 
+    flightDiv.classList.remove('active'); 
+    flightDiv.classList.add('hidden'); 
+    maintenanceDiv.classList.add('active');
+    maintenanceDiv.classList.remove('hidden');
+
+    renderMaintenance(); 
 });
 
-
-flightButton.addEventListener('click', () => {
-    aircraftButton.classList.remove('active');
-    checklistButton.classList.remove('active');
-    flightButton.classList.add('active');
-
-    aircraftDiv.classList.remove('active');
-    aircraftDiv.classList.add('hidden');
-    checklistDiv.classList.add('hidden');
-    flightDiv.classList.add('active');
-
-    flightDiv.classList.remove('hidden');
-    renderFlights();
-});
 
 
 const addFlightButton = document.getElementById('addFlight');
@@ -213,49 +241,61 @@ closeFlightBtn.addEventListener('click', () => {
 flightForm.addEventListener('submit', (event) => {
     event.preventDefault();
 
-    // 1. Gather all values from the form inputs
     const selectedTail = document.getElementById('planeDrop').value;
-    const loggedHours = parseFloat(flightForm.elements['hour-input'].value); //add praseFloat because it's a number
     const dateInput = flightForm.elements['date-input'].value;
     const originInput = flightForm.elements['origin-input'].value.trim().toUpperCase();
     const destInput = flightForm.elements['dest-input'].value.trim().toUpperCase();
     const commandRole = document.getElementById('commandDrop').value;
     const timeInput = document.getElementById('timeDrop').value;
 
+    const tachStart = parseFloat(flightForm.elements['tach-start'].value);
+    const tachEnd = parseFloat(flightForm.elements['tach-end'].value);
+    const hobbsStart = parseFloat(flightForm.elements['hobbs-start'].value);
+    const hobbsEnd = parseFloat(flightForm.elements['hobbs-end'].value);
+
+    //Prefer tach time since maintenance intervals (100hr, oil changes) are tach-based
+    let loggedHours;
+    if (!isNaN(tachStart) && !isNaN(tachEnd)) {
+        loggedHours = tachEnd - tachStart;
+    } else if (!isNaN(hobbsStart) && !isNaN(hobbsEnd)) {
+        loggedHours = hobbsEnd - hobbsStart;
+    }
+
     if (isNaN(loggedHours) || loggedHours <= 0) {
-        alert("Please enter a valid number of flight hours.");
+        alert("Please enter valid Hobbs or Tach start/end times.");
         return;
     }
 
-    //Add to the flight hours in the fleet data structure after a flight
     const planeToUpdate = fleet.find(plane => plane.tail === selectedTail);
     if (planeToUpdate) {
         const currentHours = parseFloat(planeToUpdate.hours) || 0;
         planeToUpdate.hours = currentHours + loggedHours;
+
+        //Store the latest tach reading directly on the plane - this is what maintenance items check against
+        if (!isNaN(tachEnd)) {
+            planeToUpdate.currentTach = tachEnd;
+        }
+
         localStorage.setItem('myFleet', JSON.stringify(fleet));
         renderFleet();
     }
 
-    //Make the new flight objects
     const newFlight = {
-        id: Date.now(), //ID is date like before
+        id: Date.now(),
         tail: selectedTail,
-        date: dateInput || new Date().toISOString().split('T')[0], // Fallback to today if date is blank
-        origin: originInput || '---', //Fallback to ---
+        date: dateInput || new Date().toISOString().split('T')[0],
+        origin: originInput || '---',
         dest: destInput || '---',
         hours: loggedHours,
+        tachEnd: !isNaN(tachEnd) ? tachEnd : null,
         command: commandRole,
         time: timeInput,
     };
 
-    //Push to logbook array and save to its own LocalStorage key
     logbook.push(newFlight);
     localStorage.setItem('myLogbook', JSON.stringify(logbook));
-    
-    //Update the UI grid
-    renderFlights();
 
-    //Reset and close
+    renderFlights();
     flightForm.reset();
     addFlightModal.classList.remove('active');
 });
@@ -366,7 +406,7 @@ function renderChecklists() {
 
     logbook.forEach(flight => {
         if(flight.time === "NIGHT-full" && Math.abs((new Date(flight.date) - Date.now()) / 86400000) < 90) {
-            CFR6157a++;
+            CFR6157b++;
         }
     });
 
@@ -376,16 +416,133 @@ function renderChecklists() {
         CFR6157bString = '<p><strong style="color: red;">Not Cleared per CFR §61.57(b)</strong></p>'
     }
 
-
-
     card2.innerHTML = `
         <div class="aircraft-info">
-            <label for="NightCurrency">Day Passenger Currency:</label>
+            <label for="NightCurrency">Night Passenger Currency:</label>
             <progress id="NightCurrency" max='3' value='${CFR6157b}'></progress>
             <p>${CFR6157b} / 3 flights</p>
             ${CFR6157bString}
         </div>
     `;
-
     checklistGrid.appendChild(card2);
+
+
+
+    let CFR6157c1 = 0;
+    let CFR6157cString = "";
+
+    const card3 = document.createElement('div');
+    card3.className = 'aircraft-card';
+
+    if(CFR6157b > 3){
+        CFR6157bString = '<p><strong style="color: green;">Cleared per CFR §61.57(c)</strong></p>'
+    } else {
+        CFR6157bString = '<p><strong style="color: red;">Not Cleared per CFR §61.57(c)</strong></p>'
+    }
+
+    card2.innerHTML = `
+        <div class="aircraft-info">
+            <label for="InstrumentApproaches">Flight Readiness:</label>
+            <progress id="InstrumentApproaches" max='6' value='${CFR6157c}'></progress>
+            <p>${CFR6157b} / 3 flights</p>
+            ${CFR6157bString}
+        </div>
+    `;
+    checklistGrid.appendChild(card3);
 }
+
+const commandDrop = document.getElementById('commandDrop');
+const ifrDetails = document.querySelector('.ifr-details');
+
+commandDrop.addEventListener('change', (e) => {
+  if (e.target.value === 'Dual') {
+    ifrDetails.open = true; 
+  }
+});
+
+let maintenance = JSON.parse(localStorage.getItem('Maintenance')) || [];
+
+function addMaintenanceItem(tail, type, description, intervalType, intervalValue, lastDoneValue) {
+    //intervalType is either 'hours' (tach-based, e.g. 100hr/Annual/oil) or 'calendar' (e.g. transponder, VOR, ELT)
+    const newItem = {
+        id: Date.now(),
+        tail: tail,
+        type: type, //'100hr', 'Annual', 'Oil Change', 'Transponder', 'Pitot-Static', 'VOR Check', 'ELT Battery', 'Custom'
+        description: description,
+        intervalType: intervalType,
+        intervalValue: parseFloat(intervalValue), //hours OR months, depending on intervalType
+        lastDoneHours: intervalType === 'hours' ? parseFloat(lastDoneValue) : null,
+        lastDoneDate: intervalType === 'calendar' ? lastDoneValue : null //expects 'YYYY-MM-DD'
+    };
+
+    maintenance.push(newItem);
+    localStorage.setItem('Maintenance', JSON.stringify(maintenance));
+    renderMaintenance();
+}
+
+function getMaintenanceStatus(item) {
+    const plane = fleet.find(p => p.tail === item.tail);
+    if (!plane) return { status: 'unknown' };
+
+    if (item.intervalType === 'hours') {
+        const currentTach = parseFloat(plane.currentTach) || 0;
+        const hoursSince = currentTach - item.lastDoneHours;
+        const hoursRemaining = item.intervalValue - hoursSince;
+
+        return {
+            unit: 'hours',
+            remaining: hoursRemaining,
+            status: hoursRemaining <= 0 ? 'overdue' : hoursRemaining <= 10 ? 'due-soon' : 'ok'
+        };
+    } else {
+        const dueDate = new Date(item.lastDoneDate);
+        dueDate.setMonth(dueDate.getMonth() + item.intervalValue);
+        const daysRemaining = Math.floor((dueDate - Date.now()) / 86400000);
+
+        return {
+            unit: 'days',
+            remaining: daysRemaining,
+            dueDate: dueDate.toISOString().split('T')[0],
+            status: daysRemaining <= 0 ? 'overdue' : daysRemaining <= 30 ? 'due-soon' : 'ok'
+        };
+    }
+}
+
+function renderMaintenance() {
+    const maintGrid = document.getElementById('maintenanceGrid');
+    if (!maintGrid) return;
+    maintGrid.innerHTML = '';
+
+    if (maintenance.length === 0) {
+        maintGrid.innerHTML = '<p class="empty-state">No maintenance items tracked yet.</p>';
+        return;
+    }
+
+    maintenance.forEach(item => {
+        const { unit, remaining, status, dueDate } = getMaintenanceStatus(item);
+        const statusColor = status === 'overdue' ? 'red' : status === 'due-soon' ? 'orange' : 'green';
+        const statusText = status === 'overdue' ? 'OVERDUE' : status === 'due-soon' ? 'Due Soon' : 'OK';
+
+        const card = document.createElement('div');
+        card.className = 'aircraft-card';
+        card.innerHTML = `
+            <div class="aircraft-info">
+                <h3>${item.type} - ${item.tail}</h3>
+                <p>${item.description}</p>
+                <p>${unit === 'hours' ? `${remaining.toFixed(1)} hrs remaining` : `Due ${dueDate} (${remaining} days)`}</p>
+                <p><strong style="color: ${statusColor};">${statusText}</strong></p>
+                <button class="remove-maint" id="${item.id}">Remove</button>
+            </div>
+        `;
+        maintGrid.appendChild(card);
+    });
+}
+
+document.getElementById('maintenanceGrid')?.addEventListener('click', (event) => {
+    if (event.target.classList.contains('remove-maint')) {
+        const idToRemove = Number(event.target.id);
+        maintenance = maintenance.filter(item => item.id !== idToRemove);
+        localStorage.setItem('Maintenance', JSON.stringify(maintenance));
+        renderMaintenance();
+    }
+});
