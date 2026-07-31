@@ -1,48 +1,48 @@
 const aircraftGrid = document.getElementById('aircraftGrid');
 const openAddBtn = document.getElementById('openAdd');
 
-let fleet = JSON.parse(localStorage.getItem('myFleet')) || [];
+let fleet = JSON.parse(localStorage.getItem('myFleet')) || []; //Get the fleet from localstorage, otherwise it's empty
 
-renderFleet();
+renderFleet(); //Run the function to get the fleet on screen
 
 
 function addAircraft(tailNumber, nameType, hourNumber) {
-    const newPlane = {
+    const newPlane = { //To add an aircraft, log an id, tail, name, flight hours
         id: Date.now(),
         tail: tailNumber,
         name: nameType,
         hours: hourNumber
     };
 
-    fleet.push(newPlane);
-    localStorage.setItem('myFleet', JSON.stringify(fleet));
-    renderFleet();
-    populateAircraftDropdown()
+    fleet.push(newPlane); //Then push to localStorage
+    localStorage.setItem('myFleet', JSON.stringify(fleet)); //Set it as a json so we can understand it
+    renderFleet(); //Then render again since it was updated
+    populateAircraftDropdown(); //Then update the dropdown for add flight
 }
 
 
 function renderFleet() {
-    aircraftGrid.innerHTML = '';
+    aircraftGrid.innerHTML = ''; //Set the html as nothing for right now
 
-    if (fleet.length === 0) {
+    if (fleet.length === 0) {//Then if there's nothing, say no aircraft added yet
         aircraftGrid.innerHTML = '<p class="empty-state">No aircraft added yet.</p>';
         return;
     }
 
 
-    fleet.forEach(plane => {
+    fleet.forEach(plane => { //For each plane we'll add a div class='aircraft-card' with innerHTML below
         const card = document.createElement('div');
         card.className = 'aircraft-card';
 
         card.innerHTML = `
             <svg width="50" height="50" viewBox="0 0 24 24" style="background-color: #e2f4ff; border-radius: 8px;">
-            <!-- Airplane Icon -->
+            <!--Airplane Icon from google-->
             <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1-1-1s-1 .17-1 1V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5L21 16z" fill="#0277bd" />
         </svg>
             <div class="aircraft-info">
                 <h3>${plane.tail}</h3>
                 <p>${plane.name}</p>
-                <p>${plane.hours}</p>
+                <p>${plane.hours} Hours</p>
             </div>
             <button class="edit-button" id=${plane.tail}>...</button>
         `;
@@ -56,7 +56,7 @@ const closeBtn = document.getElementById('closeBtn');
 
 openAddBtn.addEventListener('click', () => {
     addAircraftModal.classList.add('active');
-});
+}); //When modal is active, then it pops up, else it's hidden
 
 closeBtn.addEventListener('click', () => {
     addAircraftModal.classList.remove('active');
@@ -77,24 +77,23 @@ aircraftForm.addEventListener('submit', (event) => {
     addAircraftModal.classList.remove('active');
 });
 
-let currentEditedTail = null;
 const editAircraftModal = document.getElementById('editAircraftModal');
 const closeEditBtn = document.getElementById('closeEditBtn');
 const editAircraftForm = document.getElementById('editAircraftForm');
 
-aircraftGrid.addEventListener('click', (event) => {
-    if (event.target.classList.contains('edit-button')) {
-        const targetTail = event.target.id;
-        const planeToEdit = fleet.find(p => p.tail === targetTail);
+aircraftGrid.addEventListener('click', (event) => { //If there's a click on aircraft grid then...
+    if (event.target.classList.contains('edit-button')) { //Check if it's the edit button
+        const targetTail = event.target.id; //The tail will be the ID of the edit button
+        const planeToEdit = fleet.find(p => p.tail === targetTail); //Then we look for the matching plane
 
-        if (planeToEdit) {
-            currentEditingTail = targetTail;
+        if (planeToEdit) { //If there's an editable plane, then...
+            currentEditingTail = targetTail;//Set currentTail = targetTail
             
             editAircraftForm.elements['edit-tail-input'].value = planeToEdit.tail;
             editAircraftForm.elements['edit-name-input'].value = planeToEdit.name;
             editAircraftForm.elements['edit-hour-input'].value = planeToEdit.hours;
 
-            editAircraftModal.classList.add('active');
+            editAircraftModal.classList.add('active'); //Then let us see it
         }
     }
 });
@@ -110,21 +109,20 @@ editAircraftForm.addEventListener('submit', (event) => {
     const updatedName = editAircraftForm.elements['edit-name-input'].value.trim();
     const updatedHours = editAircraftForm.elements['edit-hour-input'].value.trim();
 
-    if (!updatedTail && !updatedName && !updatedHours) {
+    if (!updatedTail && !updatedName && !updatedHours) {//If everyhting is blank...
 
-        fleet = fleet.filter(plane => plane.tail !== currentEditingTail);
+        fleet = fleet.filter(plane => plane.tail !== currentEditingTail);//Delete it
     } else {
-
         fleet = fleet.map(plane => {
             if (plane.tail === currentEditingTail) {
-                return { ...plane, tail: updatedTail, name: updatedName };
+                return { ...plane, tail: updatedTail, name: updatedName, hours: updatedHours}; //Otherwise copy everything with updated stuff
             }
             return plane;
         });
     }
 
     localStorage.setItem('myFleet', JSON.stringify(fleet));
-    renderFleet();
+    renderFleet(); //REnder the fleet again
     
     editAircraftForm.reset();
     editAircraftModal.classList.remove('active');
@@ -138,12 +136,14 @@ const aircraftDiv = document.getElementById('aircraftDiv');
 const checklistDiv = document.getElementById('checklistDiv');
 const flightDiv = document.getElementById('flightDiv');
 
-aircraftButton.addEventListener('click', () => {
+aircraftButton.addEventListener('click', () => { //When switching tabs on sidebar, change the div form hidden to not-hidden
+    //I got mixed up with some stuff so there's unnecessary actives but who cares
     aircraftButton.classList.add('active');
     checklistButton.classList.remove('active');
     flightButton.classList.remove('active');
 
     aircraftDiv.classList.add('active');
+    aircraftDiv.classList.remove('hidden');
     checklistDiv.classList.remove('active');
     checklistDiv.classList.add('hidden');
     flightDiv.classList.remove('active');
@@ -164,6 +164,7 @@ checklistButton.addEventListener('click', () => {
     flightDiv.classList.add('hidden');
 
     checklistDiv.classList.remove('hidden');
+    renderChecklists();
 });
 
 
@@ -188,15 +189,14 @@ const closeFlightBtn = document.getElementById('closeFlightBtn');
 const flightForm = document.getElementById('flightForm');
 
 const flightGrid = document.getElementById('flightGrid');
-let logbook = JSON.parse(localStorage.getItem('myLogbook')) || [];
+let logbook = JSON.parse(localStorage.getItem('myLogbook')) || []; //Logbook is a seperate data structure, just for flights
 
 function populateAircraftDropdown() {
     const selectDropdown = document.getElementById("planeDrop");
+    selectDropdown.innerHTML = '';
     if (!selectDropdown) return;
-  
-        selectDropdown.innerHTML = '<option value="">-- Select an Aircraft --</option>';
         fleet.forEach(plane => {
-            const option = new Option(`${plane.tail} (${plane.name})`, plane.tail);
+            const option = new Option(`${plane.tail} (${plane.name})`, plane.tail); //Shows up as "tail (name)" with value=tail
             selectDropdown.add(option);
         });
 }
@@ -215,24 +215,19 @@ flightForm.addEventListener('submit', (event) => {
 
     // 1. Gather all values from the form inputs
     const selectedTail = document.getElementById('planeDrop').value;
-    const loggedHours = parseFloat(flightForm.elements['hour-input'].value);
+    const loggedHours = parseFloat(flightForm.elements['hour-input'].value); //add praseFloat because it's a number
     const dateInput = flightForm.elements['date-input'].value;
     const originInput = flightForm.elements['origin-input'].value.trim().toUpperCase();
     const destInput = flightForm.elements['dest-input'].value.trim().toUpperCase();
     const commandRole = document.getElementById('commandDrop').value;
     const timeInput = document.getElementById('timeDrop').value;
 
-    // Validation checks
-    if (!selectedTail) {
-        alert("Please select an aircraft.");
-        return;
-    }
     if (isNaN(loggedHours) || loggedHours <= 0) {
         alert("Please enter a valid number of flight hours.");
         return;
     }
 
-    // 2. Keep your existing logic: Update the aircraft's lifetime hours
+    //Add to the flight hours in the fleet data structure after a flight
     const planeToUpdate = fleet.find(plane => plane.tail === selectedTail);
     if (planeToUpdate) {
         const currentHours = parseFloat(planeToUpdate.hours) || 0;
@@ -241,26 +236,26 @@ flightForm.addEventListener('submit', (event) => {
         renderFleet();
     }
 
-    // 3. New logic: Create the structured flight object
+    //Make the new flight objects
     const newFlight = {
-        id: Date.now(),             // Unique identifier
-        tail: selectedTail,         // Links flight back to the plane
-        date: dateInput || new Date().toISOString().split('T')[0], // Fallback to today if blank
-        origin: originInput || '---',
+        id: Date.now(), //ID is date like before
+        tail: selectedTail,
+        date: dateInput || new Date().toISOString().split('T')[0], // Fallback to today if date is blank
+        origin: originInput || '---', //Fallback to ---
         dest: destInput || '---',
         hours: loggedHours,
         command: commandRole,
         time: timeInput,
     };
 
-    // 4. Push to logbook array and save to its own LocalStorage key
+    //Push to logbook array and save to its own LocalStorage key
     logbook.push(newFlight);
     localStorage.setItem('myLogbook', JSON.stringify(logbook));
     
-    // 5. Update the UI grid
+    //Update the UI grid
     renderFlights();
 
-    // Reset and close UI modal
+    //Reset and close
     flightForm.reset();
     addFlightModal.classList.remove('active');
 });
@@ -268,11 +263,11 @@ flightForm.addEventListener('submit', (event) => {
 populateAircraftDropdown();
 
 function renderFlights() {
-    flightGrid.innerHTML = ''; // Clear old cards
+    flightGrid.innerHTML = ''; //Clear old cards
 
     logbook.forEach(flight => {
         const card = document.createElement('div');
-        card.className = 'aircraft-card'; // Reuse your CSS styles
+        card.className = 'aircraft-card'; //Reuse CSS styles since I don't feel like making a new one
         
         card.innerHTML = `
             <div class="aircraft-info">
@@ -288,42 +283,109 @@ function renderFlights() {
     });
 }
 
-// Listen to the entire grid container
+//Same deal as before
 flightGrid.addEventListener('click', (event) => {
-    // Check if what the user clicked was actually a remove button
     if (event.target.classList.contains('removeFlight')) {
         
-        // 1. Get the unique ID from the data attribute (convert string to number)
         const flightIdToRemove = Number(event.target.getAttribute('id'));
-        
-        // 2. Find the specific flight object BEFORE filtering it out of the array
         const flightToDelete = logbook.find(flight => flight.id === flightIdToRemove);
         
         if (flightToDelete) {
-            // 3. Find the corresponding aircraft in your fleet array
+            //Find the plane since we're updating it's hours
             const planeToUpdate = fleet.find(plane => plane.tail === flightToDelete.tail);
             
             if (planeToUpdate) {
-                // 4. Subtract the flight hours from the aircraft's current hours
+                //Subtract
                 const currentHours = parseFloat(planeToUpdate.hours) || 0;
                 const updatedHours = currentHours - parseFloat(flightToDelete.hours);
                 
-                // Prevent negative hours by defaulting to 0
+                //Default to 0
                 planeToUpdate.hours = updatedHours > 0 ? updatedHours : 0;
-                
-                // 5. Save the updated fleet to LocalStorage and redraw the aircraft panel
+    
                 localStorage.setItem('myFleet', JSON.stringify(fleet));
                 renderFleet();
             }
         }
-
-        // 6. Filter out the flight with that specific ID from the logbook
         logbook = logbook.filter(flight => flight.id !== flightIdToRemove);
-        
-        // 7. Save the updated logbook array back to LocalStorage
-        localStorage.setItem('myLogbook', JSON.stringify(logbook));
-        
-        // 8. Refresh the UI cards instantly
+        localStorage.setItem('myLogbook', JSON.stringify(logbook));    
         renderFlights();
     }
 });
+
+const checklistGrid = document.getElementById('checklistGrid');
+
+function renderChecklists() {
+    let CFR6157a = 0;
+    let CFR6157aString = "";
+
+    logbook.forEach(flight => {
+        if(flight.time === "DAY" && Math.abs((new Date(flight.date) - Date.now()) / 86400000) < 90) {
+            CFR6157a++;
+        }
+    });
+
+    logbook.forEach(flight => {
+        if(flight.time === "NIGHT-full" && Math.abs((new Date(flight.date) - Date.now()) / 86400000) < 90) {
+            CFR6157a++;
+        }
+    });
+
+    logbook.forEach(flight => {
+        if(flight.time === "NIGHT-touch" && Math.abs((new Date(flight.date) - Date.now()) / 86400000) < 90) {
+            CFR6157a++;
+        }
+    });
+
+    checklistGrid.innerHTML = '';
+    
+    const card1 = document.createElement('div');
+    card1.className = 'aircraft-card'; 
+    
+    if(CFR6157a > 3){
+        CFR6157aString = '<p><strong style="color: green;">Cleared per CFR §61.57(a)</strong></p>'
+    } else {
+        CFR6157aString = '<p><strong style="color: red;">Not Cleared per CFR §61.57(a)</strong></p>'
+    }
+
+    card1.innerHTML = `
+        <div class="aircraft-info">
+            <label for="DayCurrency">Day Passenger Currency:</label>
+            <progress id="DayCurrency" max='3' value='${CFR6157a}'></progress>
+            <p>${CFR6157a} / 3 flights</p>
+            ${CFR6157aString}
+        </div>
+    `;
+
+    checklistGrid.appendChild(card1);
+
+    let CFR6157b = 0;
+    let CFR6157bString = "";
+
+    const card2 = document.createElement('div');
+    card2.className = 'aircraft-card';
+
+    logbook.forEach(flight => {
+        if(flight.time === "NIGHT-full" && Math.abs((new Date(flight.date) - Date.now()) / 86400000) < 90) {
+            CFR6157a++;
+        }
+    });
+
+    if(CFR6157b > 3){
+        CFR6157bString = '<p><strong style="color: green;">Cleared per CFR §61.57(b)</strong></p>'
+    } else {
+        CFR6157bString = '<p><strong style="color: red;">Not Cleared per CFR §61.57(b)</strong></p>'
+    }
+
+
+
+    card2.innerHTML = `
+        <div class="aircraft-info">
+            <label for="NightCurrency">Day Passenger Currency:</label>
+            <progress id="NightCurrency" max='3' value='${CFR6157b}'></progress>
+            <p>${CFR6157b} / 3 flights</p>
+            ${CFR6157bString}
+        </div>
+    `;
+
+    checklistGrid.appendChild(card2);
+}
