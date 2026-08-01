@@ -126,6 +126,7 @@ editAircraftForm.addEventListener('submit', (event) => {
 
     localStorage.setItem('myFleet', JSON.stringify(fleet));
     renderFleet(); //REnder the fleet again
+    renderMaintenance();
     
     editAircraftForm.reset();
     editAircraftModal.classList.remove('active');
@@ -209,7 +210,8 @@ maintenanceButton.addEventListener('click', () => {
     maintenanceDiv.classList.add('active');
     maintenanceDiv.classList.remove('hidden');
 
-    renderMaintenance(); 
+    ensureMandatoryMaintenance();
+    renderMaintenance();
 });
 
 
@@ -440,18 +442,18 @@ function renderChecklists() {
     const card3 = document.createElement('div');
     card3.className = 'aircraft-card';
 
-    if(CFR6157b > 3){
-        CFR6157bString = '<p><strong style="color: green;">Cleared per CFR §61.57(c)</strong></p>'
+    if(CFR6157c1 > 3){
+        CFR6157cString = '<p><strong style="color: green;">Cleared per CFR §61.57(c)</strong></p>'
     } else {
-        CFR6157bString = '<p><strong style="color: red;">Not Cleared per CFR §61.57(c)</strong></p>'
+        CFR6157cString = '<p><strong style="color: red;">Not Cleared per CFR §61.57(c)</strong></p>'
     }
 
-    card2.innerHTML = `
+    card3.innerHTML = `
         <div class="aircraft-info">
             <label for="InstrumentApproaches">Flight Readiness:</label>
-            <progress id="InstrumentApproaches" max='6' value='${CFR6157c}'></progress>
-            <p>${CFR6157b} / 3 flights</p>
-            ${CFR6157bString}
+            <progress id="InstrumentApproaches" max='6' value='${CFR6157c1}'></progress>
+            <p>${CFR6157c1} / 3 flights</p>
+            ${CFR6157cString}
         </div>
     `;
     checklistGrid.appendChild(card3);
@@ -500,17 +502,16 @@ document.getElementById('planeDrop').addEventListener('change', prefillStartTime
 
 const maintenanceGrid = document.getElementById('maintenanceGrid');
 
-function renderMaintenance() {
-    maintenanceGrid.innerHTML = '';
+function renderMaintenance() { //To render maintenance, we...
+    maintenanceGrid.innerHTML = '';//Clear the html first
 
-    if (maintenance.length === 0) {
+    if (maintenance.length === 0) { //We have legally required ones so this should never happen
         maintenanceGrid.innerHTML = '<p class="empty-state">No maintenance items tracked yet.</p>';
         return;
     }
 
-    const sorted = [...maintenance].sort((a, b) => (b.isMandatory === true) - (a.isMandatory === true));
 
-    sorted.forEach(item => {
+    maintenance.forEach(item => {
         const plane = fleet.find(p => p.tail === item.tail);
         const card = document.createElement('div');
         card.className = 'aircraft-card';
@@ -518,13 +519,16 @@ function renderMaintenance() {
         let usedValue, maxValue, remainingText, statusString;
 
         if (item.intervalType === 'hours') {
-            const currentTach = parseFloat(plane?.currentTach) || 0;
-            const hoursSince = currentTach - item.lastDoneHours;
+            const currentValue = item.hourSource === 'tach'
+                ? (parseFloat(plane?.currentTach) || 0)
+                : (parseFloat(plane?.hours) || 0);
+
+            const hoursSince = currentValue - item.lastDoneHours;
             const remaining = item.intervalValue - hoursSince;
 
             usedValue = hoursSince;
             maxValue = item.intervalValue;
-            remainingText = `${remaining.toFixed(1)} hrs remaining`;
+            remainingText = `${remaining.toFixed(1)} hrs remaining (${item.hourSource === 'tach' ? 'tach' : 'flight hrs'})`;
 
             if (remaining <= 0) {
                 statusString = '<p><strong style="color: red;">OVERDUE</strong></p>';
@@ -533,7 +537,7 @@ function renderMaintenance() {
             } else {
                 statusString = '<p><strong style="color: green;">OK</strong></p>';
             }
-        } else { //calendar-based
+        }   else { //calendar-based
             const dueDate = new Date(item.lastDoneDate);
             dueDate.setMonth(dueDate.getMonth() + item.intervalValue);
 
@@ -587,21 +591,22 @@ maintenanceGrid.addEventListener('click', (event) => {
 });
 
 const MANDATORY_ITEMS = [
-    { type: '100hr',         description: '100 Hour Inspection',      intervalType: 'hours',    intervalValue: 100 },
-    { type: 'Annual',        description: 'Annual Inspection',        intervalType: 'calendar', intervalValue: 12 },
-    { type: 'Transponder',   description: 'Transponder/Pitot-Static Check (91.411/91.413)', intervalType: 'calendar', intervalValue: 24 },
-    { type: 'ELT Battery',   description: 'ELT Battery/Inspection',   intervalType: 'calendar', intervalValue: 12 },
+    { type: '100hr', description: '100 Hour Inspection', intervalType: 'hours', intervalValue: 100, hourSource: 'tach'},
+    { type: 'Annual', description: 'Annual Inspection', intervalType: 'calendar', intervalValue: 12 },
+    { type: 'Transponder', description: 'Transponder/Pitot-Static Check (91.411/91.413)', intervalType: 'calendar', intervalValue: 24 },
+    { type: 'ELT Battery', description: 'ELT Battery/Inspection', intervalType: 'calendar', intervalValue: 12 },
 ];
 
 function createMandatoryMaintenance(tail) {
     MANDATORY_ITEMS.forEach(template => {
         maintenance.push({
-            id: Date.now() + Math.random(), //avoid collisions when several get made in the same tick
+            id: Date.now(),
             tail: tail,
             type: template.type,
             description: template.description,
             intervalType: template.intervalType,
             intervalValue: template.intervalValue,
+            hourSource: template.hourSource || 'flightHours',
             lastDoneHours: template.intervalType === 'hours' ? 0 : null,
             lastDoneDate: template.intervalType === 'calendar' ? new Date().toISOString().split('T')[0] : null,
             isMandatory: true
@@ -616,7 +621,7 @@ function ensureMandatoryMaintenance() {
             const exists = maintenance.some(item => item.tail === plane.tail && item.type === template.type);
             if (!exists) {
                 maintenance.push({
-                    id: Date.now() + Math.random(),
+                    id: Date.now(),
                     tail: plane.tail,
                     type: template.type,
                     description: template.description,
@@ -631,6 +636,141 @@ function ensureMandatoryMaintenance() {
     });
     localStorage.setItem('myMaintenance', JSON.stringify(maintenance));
 }
+
+const editMaintenanceModal = document.getElementById('editMaintenanceModal');
+const closeEditMaintBtn = document.getElementById('closeEditMaintBtn');
+const editMaintenanceForm = document.getElementById('editMaintenanceForm');
+
+let currentEditingMaintId = null;
+
+maintenanceGrid.addEventListener('click', (event) => {
+    if (event.target.classList.contains('edit-maint')) {
+        const idToEdit = Number(event.target.id);
+        const itemToEdit = maintenance.find(item => item.id === idToEdit);
+
+        if (itemToEdit) {
+            currentEditingMaintId = idToEdit;
+
+            //Show only the relevant field based on interval type
+            const hoursField = editMaintenanceForm.querySelector('.hours-field');
+            const calendarField = editMaintenanceForm.querySelector('.calendar-field');
+
+            if (itemToEdit.intervalType === 'hours') {
+                hoursField.style.display = '';
+                calendarField.style.display = 'none';
+                hoursField.value = itemToEdit.lastDoneHours;
+            } else {
+                hoursField.style.display = 'none';
+                calendarField.style.display = '';
+                calendarField.value = itemToEdit.lastDoneDate;
+            }
+
+            editMaintenanceModal.classList.add('active');
+        }
+    }
+
+    if (event.target.classList.contains('remove-maint')) {
+        const idToRemove = Number(event.target.id);
+        maintenance = maintenance.filter(item => item.id !== idToRemove);
+        localStorage.setItem('myMaintenance', JSON.stringify(maintenance));
+        renderMaintenance();
+    }
+});
+
+closeEditMaintBtn.addEventListener('click', () => {
+    editMaintenanceModal.classList.remove('active');
+});
+
+editMaintenanceForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+
+    const newHours = editMaintenanceForm.elements['edit-last-done-hours'].value;
+    const newDate = editMaintenanceForm.elements['edit-last-done-date'].value;
+
+    maintenance = maintenance.map(item => {
+        if (item.id === currentEditingMaintId) {
+            if (item.intervalType === 'hours') {
+                return { ...item, lastDoneHours: parseFloat(newHours) };
+            } else {
+                return { ...item, lastDoneDate: newDate };
+            }
+        }
+        return item;
+    });
+
+    localStorage.setItem('myMaintenance', JSON.stringify(maintenance));
+    renderMaintenance();
+
+    editMaintenanceForm.reset();
+    editMaintenanceModal.classList.remove('active');
+});
+
+function populateMaintPlaneDropdown() {
+    const dropdown = document.getElementById('maintPlaneDrop');
+    if (!dropdown) return;
+    dropdown.innerHTML = '';
+    fleet.forEach(plane => {
+        dropdown.add(new Option(`${plane.tail} (${plane.name})`, plane.tail));
+    });
+}
+
+maintenanceAddButton.addEventListener('click', () => {
+    populateMaintPlaneDropdown();
+    maintenanceModal.classList.add('active');
+});
+
+const maintenanceForm = document.getElementById('maintenanceForm');
+
+maintenanceForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+
+    const selectedTail = document.getElementById('maintPlaneDrop').value;
+    const description = maintenanceForm.elements['maint-description'].value.trim();
+    const intervalType = document.getElementById('intervalTypeDrop').value; // 'hours' or 'calendar'
+    const intervalValue = parseFloat(maintenanceForm.elements['interval-value'].value);
+    const lastDoneHours = maintenanceForm.elements['last-done-hours'].value;
+    const lastDoneDate = maintenanceForm.elements['last-done-date'].value;
+    const hourSource = document.getElementById('hourSourceDrop')?.value || 'flightHours';
+
+    if (!selectedTail || !description || isNaN(intervalValue)) {
+        alert("Please fill out all required fields.");
+        return;
+    }
+
+    maintenance.push({
+        id: Date.now(),
+        tail: selectedTail,
+        type: 'Custom',
+        description: description,
+        intervalType: intervalType,
+        intervalValue: intervalValue,
+        hourSource: hourSource,
+        lastDoneHours: intervalType === 'hours' ? parseFloat(lastDoneHours) || 0 : null,
+        lastDoneDate: intervalType === 'calendar' ? (lastDoneDate || new Date().toISOString().split('T')[0]) : null,
+        isMandatory: false
+    });
+
+    localStorage.setItem('myMaintenance', JSON.stringify(maintenance));
+    renderMaintenance();
+
+    maintenanceForm.reset();
+    maintenanceModal.classList.remove('active');
+});
+
+
+document.getElementById('intervalTypeDrop').addEventListener('change', (e) => {
+    const hoursContainer = editMaintenanceForm.querySelector('.hours-done');
+    const calendarContainer = editMaintenanceForm.querySelector('.date-done');
+
+    if (e.target.value === 'hours') {
+        hoursContainer.style.display = '';       // Show hours block
+        calendarContainer.style.display = 'none'; // Hide calendar block
+    } else {
+        hoursContainer.style.display = 'none';    // Hide hours block
+        calendarContainer.style.display = '';    // Show calendar block
+    }
+});
+
 
 ensureMandatoryMaintenance();
 renderMaintenance();

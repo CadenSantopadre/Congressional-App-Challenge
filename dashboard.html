@@ -165,34 +165,47 @@
     <button type="button" id="closeMaintBtn">X</button>
     <h2>Add Maintenance Item</h2>
     <form id="maintenanceForm">
-      <select name="Planes" id="maintPlaneDrop"></select>
+        <select name="Planes" id="maintPlaneDrop"></select>
 
-      <select name="maint-type" id="maintTypeDrop">
-        <option value="100hr">100 Hour</option>
-        <option value="Annual">Annual</option>
-        <option value="Oil Change">Oil Change</option>
-        <option value="Transponder">Transponder Check</option>
-        <option value="Pitot-Static">Pitot-Static/Altimeter</option>
-        <option value="VOR Check">VOR Check</option>
-        <option value="ELT Battery">ELT Battery</option>
-        <option value="Custom">Custom</option>
-      </select>
+        <input type="text" placeholder="Description" name="maint-description">
 
-      <input type="text" placeholder="Description" name="maint-description">
+        <select name="interval-type" id="intervalTypeDrop">
+            <option value="hours">Hours-Based</option>
+            <option value="calendar">Calendar-Based</option>
+        </select>
+        
+        <select name="hour-source" id="hourSourceDrop" class="hours-field">
+            <option value="flightHours">Flight Hours (Hobbs)</option>
+            <option value="tach">Tach Time</option>
+        </select>
 
-      <select name="interval-type" id="intervalTypeDrop">
-        <option value="hours">Hours-Based (Tach)</option>
-        <option value="calendar">Calendar-Based</option>
-      </select>
+        <input type="number" placeholder="Interval Value (hrs or months)" name="interval-value" required>
 
-      <input type="number" placeholder="Interval Value (hrs or months)" name="interval-value" required>
+        <input type="number" placeholder="Tach at Last Done" name="last-done-hours" class="hours-field">
+        <input type="date" placeholder="Date Last Done" name="last-done-date" class="calendar-field">
 
-      <input type="number" placeholder="Tach at Last Done" name="last-done-hours" class="hours-field">
-      <input type="date" placeholder="Date Last Done" name="last-done-date" class="calendar-field">
-
-      <button type="submit">Add Item</button>
+        <button type="submit">Add Item</button>
     </form>
-  </div>
+    </div>
+</div>
+
+<div id="editMaintenanceModal" class="modal">
+    <div class="modal-content">
+        <button id="closeEditMaintBtn">X</button>
+        <h2>Update Maintenance</h2>
+        <form id="editMaintenanceForm"> 
+            <!-- Keep inputs nested inside labels, but control display via the label class -->
+            <label class="hours-done">
+                Tach at last done 
+                <input type="number" name="edit-last-done-hours" class="hours-field" placeholder="Tach at last done"> 
+            </label> 
+            
+            <label class="date-done" style="display: none;">
+                Date last done 
+                <input type="date" name="edit-last-done-date" class="calendar-field" placeholder="Date last done"> 
+            </label>
+        </form>
+    </div>
 </div>
 
 </body>
