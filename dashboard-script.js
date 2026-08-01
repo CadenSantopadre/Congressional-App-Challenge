@@ -115,7 +115,8 @@ aircraftGrid.addEventListener('click', (event) => { //If there's a click on airc
             
             editAircraftForm.elements['edit-tail-input'].value = planeToEdit.tail;
             editAircraftForm.elements['edit-name-input'].value = planeToEdit.name;
-            editAircraftForm.elements['edit-hour-input'].value = planeToEdit.hours;
+            editAircraftForm.elements['edit-tach-input'].value = planeToEdit.currentTach;
+            editAircraftForm.elements['edit-hobbs-input'].value = planeToEdit.currentHobbs;
 
             editAircraftModal.classList.add('active'); //Then let us see it
         }
@@ -131,15 +132,16 @@ editAircraftForm.addEventListener('submit', (event) => {
 
     const updatedTail = editAircraftForm.elements['edit-tail-input'].value.trim();
     const updatedName = editAircraftForm.elements['edit-name-input'].value.trim();
-    const updatedHours = editAircraftForm.elements['edit-hour-input'].value.trim();
+    const updatedTach = editAircraftForm.elements['edit-tach-input'].value.trim();
+    const updatedHobbs = editAircraftForm.elements['edit-hobbs-input'].value.trim();
 
-    if (!updatedTail && !updatedName && !updatedHours) {//If everyhting is blank...
+    if (!updatedTail && !updatedName && !updatedTach && !updatedHobbs) {//If everyhting is blank...
 
         fleet = fleet.filter(plane => plane.tail !== currentEditingTail);//Delete it
     } else {
         fleet = fleet.map(plane => {
             if (plane.tail === currentEditingTail) {
-                return { ...plane, tail: updatedTail, name: updatedName, hours: updatedHours}; //Otherwise copy everything with updated stuff
+                return { ...plane, tail: updatedTail, name: updatedName, currentTach: updatedTach, currentHobbs: updatedHobbs}; //Otherwise copy everything with updated stuff
             }
             return plane;
         });
@@ -237,165 +239,140 @@ maintenanceButton.addEventListener('click', () => {
 
 
 
-const addFlightButton = document.getElementById('addFlight');
-const addFlightModal = document.getElementById('addFlightModal');
-const closeFlightBtn = document.getElementById('closeFlightBtn');
-const flightForm = document.getElementById('flightForm');
+const addFlightButton = document.getElementById('addFlight'); 
+const addFlightModal = document.getElementById('addFlightModal'); 
+const closeFlightBtn = document.getElementById('closeFlightBtn'); 
+const flightForm = document.getElementById('flightForm'); 
+const flightGrid = document.getElementById('flightGrid'); 
 
-const flightGrid = document.getElementById('flightGrid');
-let logbook = JSON.parse(localStorage.getItem('myLogbook')) || []; //Logbook is a seperate data structure, just for flights
+let logbook = JSON.parse(localStorage.getItem('myLogbook')) || []; 
 
-function populateAircraftDropdown() {
-    const selectDropdown = document.getElementById("planeDrop");
-    selectDropdown.innerHTML = '';
-    if (!selectDropdown) return;
-        fleet.forEach(plane => {
-            const option = new Option(`${plane.tail} (${plane.name})`, plane.tail); //Shows up as "tail (name)" with value=tail
-            selectDropdown.add(option);
-        });
-}
-
-addFlightButton.addEventListener('click', () => {
-    populateAircraftDropdown();
-    addFlightModal.classList.add('active');
-});
-
-closeFlightBtn.addEventListener('click', () => {
-    addFlightModal.classList.remove('active');
-});
-
-flightForm.addEventListener('submit', (event) => {
-    event.preventDefault();
-
-    const selectedTail = document.getElementById('planeDrop').value;
-    const dateInput = flightForm.elements['date-input'].value;
-    const originInput = flightForm.elements['origin-input'].value.trim().toUpperCase();
-    const destInput = flightForm.elements['dest-input'].value.trim().toUpperCase();
-    const commandRole = document.getElementById('commandDrop').value;
-    const timeInput = document.getElementById('timeDrop').value;
-
-    const tachStart = parseFloat(flightForm.elements['tach-start'].value);
-    const tachEnd = parseFloat(flightForm.elements['tach-end'].value);
-    const hobbsStart = parseFloat(flightForm.elements['hobbs-start'].value);
-    const hobbsEnd = parseFloat(flightForm.elements['hobbs-end'].value);
-
-    let loggedHours = NaN;
-    if (!isNaN(tachStart) && !isNaN(tachEnd)) {
-        loggedHours = tachEnd - tachStart;
-    } else if (!isNaN(hobbsStart) && !isNaN(hobbsEnd)) {
-        loggedHours = hobbsEnd - hobbsStart;
-    }
-
-    if (isNaN(loggedHours) || loggedHours <= 0) {
-        alert("Please enter valid Hobbs and Tach start/end times.");
-        return;
-    }
-
-    const planeToUpdate = fleet.find(plane => plane.tail === selectedTail);
-    let previousTach = 0;
-    let previousHobbs = 0;
-
-    if (planeToUpdate) {
-        previousTach = parseFloat(planeToUpdate.currentTach) || 0;
-        previousHobbs = parseFloat(planeToUpdate.currentHobbs) || 0;
-
-        const currentHours = parseFloat(planeToUpdate.hours) || 0;
-        planeToUpdate.hours = currentHours + loggedHours;
-
-        if (!isNaN(tachEnd)) {
-            planeToUpdate.currentTach = tachEnd;
-        }
-
-        if (!isNaN(hobbsEnd)) {
-            planeToUpdate.currentHobbs = hobbsEnd;
-        }
-
-        localStorage.setItem('myFleet', JSON.stringify(fleet));
-        renderFleet();
-    }
-
-    const newFlight = {
-        id: Date.now(),
-        tail: selectedTail,
-        date: dateInput || new Date().toISOString().split('T')[0],
-        origin: originInput || '---',
-        dest: destInput || '---',
-        hours: loggedHours,
-        tachStart: !isNaN(tachStart) ? tachStart : null,
-        tachEnd: !isNaN(tachEnd) ? tachEnd : null,
-        hobbsStart: !isNaN(hobbsStart) ? hobbsStart : null,
-        hobbsEnd: !isNaN(hobbsEnd) ? hobbsEnd : null,
-        previousTach: previousTach,
-        previousHobbs: previousHobbs,
-        command: commandRole,
-        time: timeInput,
-    };
-
-    logbook.push(newFlight);
-    localStorage.setItem('myLogbook', JSON.stringify(logbook));
-
-    renderFlights();
-    flightForm.reset();
-    addFlightModal.classList.remove('active');
-});
-
-populateAircraftDropdown();
-
-function renderFlights() {
-    flightGrid.innerHTML = ''; //Clear old cards
-
-    logbook.forEach(flight => {
-        const card = document.createElement('div');
-        card.className = 'aircraft-card'; //Reuse CSS styles since I don't feel like making a new one
-        
-        card.innerHTML = `
-            <div class="aircraft-info">
-                <button id="${flight.id}" class="removeFlight">Remove Flight</button>
-                <h3>${flight.origin} to ${flight.dest}</h3>
-                <p>Date: ${flight.date} at ${flight.time}</p>
-                <p>Tail: ${flight.tail}</p>
-                <p>Hours: ${flight.hours}</p>
-                <p>Position: ${flight.command}</p>
-            </div>
-        `;
-        flightGrid.appendChild(card);
-    });
-}
-
-//Same deal as before
-flightGrid.addEventListener('click', (event) => {
-    if (event.target.classList.contains('removeFlight')) {
-        
-        const flightIdToRemove = Number(event.target.getAttribute('id'));
-        const flightToDelete = logbook.find(flight => flight.id === flightIdToRemove);
-        
-        if (flightToDelete) {
-            const planeToUpdate = fleet.find(plane => plane.tail === flightToDelete.tail);
-            
-            if (planeToUpdate) {
-                const currentHours = parseFloat(planeToUpdate.hours) || 0;
-                const hoursToSubtract = parseFloat(flightToDelete.hours) || 0;
-                planeToUpdate.hours = Math.max(0, currentHours - hoursToSubtract);
-
-                const laterFlights = logbook.filter(flight => flight.tail === flightToDelete.tail && flight.id > flightToDelete.id);
-                const isMostRecentFlight = laterFlights.length === 0;
-
-                if (isMostRecentFlight) {
-                    const restoredTach = parseFloat(flightToDelete.previousTach) ?? 0;
-                    const restoredHobbs = parseFloat(flightToDelete.previousHobbs) ?? 0;
-                    planeToUpdate.currentTach = restoredTach;
-                    planeToUpdate.currentHobbs = restoredHobbs;
-                }
+function populateAircraftDropdown() { 
+    const selectDropdown = document.getElementById("planeDrop"); 
+    if (!selectDropdown) return; 
+    selectDropdown.innerHTML = ''; 
     
-                localStorage.setItem('myFleet', JSON.stringify(fleet));
-                renderFleet();
-            }
-        }
-        logbook = logbook.filter(flight => flight.id !== flightIdToRemove);
-        localStorage.setItem('myLogbook', JSON.stringify(logbook));    
+    fleet.forEach(plane => { 
+        const option = new Option(`${plane.tail} (${plane.name})`, plane.tail); 
+        selectDropdown.add(option); 
+    }); 
+} 
+
+addFlightButton.addEventListener('click', () => { 
+    populateAircraftDropdown(); 
+    addFlightModal.classList.add('active'); 
+}); 
+
+closeFlightBtn.addEventListener('click', () => { 
+    addFlightModal.classList.remove('active'); 
+}); 
+
+flightForm.addEventListener('submit', (event) => { 
+    event.preventDefault(); 
+    const selectedTail = document.getElementById('planeDrop').value; 
+    const dateInput = flightForm.elements['date-input'].value; 
+    const originInput = flightForm.elements['origin-input'].value.trim().toUpperCase(); 
+    const destInput = flightForm.elements['dest-input'].value.trim().toUpperCase(); 
+    const commandRole = document.getElementById('commandDrop').value; 
+    const timeInput = document.getElementById('timeDrop').value; 
+    
+    const tachStart = parseFloat(flightForm.elements['tach-start'].value); 
+    const tachEnd = parseFloat(flightForm.elements['tach-end'].value); 
+    const hobbsStart = parseFloat(flightForm.elements['hobbs-start'].value); 
+    const hobbsEnd = parseFloat(flightForm.elements['hobbs-end'].value); 
+
+    let loggedHours = NaN; 
+    if (!isNaN(tachStart) && !isNaN(tachEnd)) { 
+        loggedHours = tachEnd - tachStart; 
+    } else if (!isNaN(hobbsStart) && !isNaN(hobbsEnd)) { 
+        loggedHours = hobbsEnd - hobbsStart; 
+    } 
+
+    if (isNaN(loggedHours) || loggedHours <= 0) { 
+        alert("Please enter valid Hobbs and Tach start/end times."); 
+        return; 
+    } 
+
+    const planeToUpdate = fleet.find(plane => plane.tail === selectedTail); 
+    if (planeToUpdate) { 
+        if (!isNaN(tachEnd)) { planeToUpdate.currentTach = tachEnd; } 
+        if (!isNaN(hobbsEnd)) { planeToUpdate.currentHobbs = hobbsEnd; } 
+        localStorage.setItem('myFleet', JSON.stringify(fleet)); 
+        renderFleet(); 
+        renderMaintenance(); 
+    } 
+
+    const newFlight = { 
+        id: Date.now(), 
+        tail: selectedTail, 
+        date: dateInput || new Date().toISOString().split('T')[0], 
+        origin: originInput || '---', 
+        dest: destInput || '---', 
+        hours: loggedHours.toFixed(1),
+        tachStart: !isNaN(tachStart) ? tachStart : null, 
+        tachEnd: !isNaN(tachEnd) ? tachEnd : null, 
+        hobbsStart: !isNaN(hobbsStart) ? hobbsStart : null, 
+        hobbsEnd: !isNaN(hobbsEnd) ? hobbsEnd : null, 
+        command: commandRole, 
+        time: timeInput, 
+    }; 
+
+    logbook.push(newFlight); 
+    localStorage.setItem('myLogbook', JSON.stringify(logbook)); 
+    
+    renderFlights(); 
+    flightForm.reset(); 
+    addFlightModal.classList.remove('active'); 
+}); 
+
+populateAircraftDropdown(); 
+renderFlights();
+
+function renderFlights() { 
+    flightGrid.innerHTML = ''; 
+    logbook.forEach(flight => { 
+        const card = document.createElement('div'); 
+        card.className = 'aircraft-card'; 
+        card.innerHTML = ` 
+            <div class="aircraft-info"> 
+                <button id="${flight.id}" class="removeFlight">Remove Flight</button> 
+                <h3>${flight.origin} to ${flight.dest}</h3> 
+                <p>Date: ${flight.date} at ${flight.time}</p> 
+                <p>Tail: ${flight.tail}</p> 
+                <p>Hours: ${flight.hours}</p> 
+                <p>Position: ${flight.command}</p> 
+            </div> 
+        `; 
+        flightGrid.appendChild(card); 
+    }); 
+} 
+
+flightGrid.addEventListener('click', (event) => { 
+    if (event.target.classList.contains('removeFlight')) { 
+        const flightIdToRemove = Number(event.target.getAttribute('id')); 
+        const flightToDelete = logbook.find(flight => flight.id === flightIdToRemove); 
+        const flightIndex = logbook.findIndex(flight => flight.id === flightIdToRemove); 
+
+        if (flightToDelete) { 
+            const planeToUpdate = fleet.find(plane => plane.tail === flightToDelete.tail); 
+            if (planeToUpdate) { 
+                if (flightToDelete.tachEnd && flightToDelete.tachStart) {
+                    planeToUpdate.currentTach -= (flightToDelete.tachEnd - flightToDelete.tachStart); 
+                }
+                if (flightToDelete.hobbsEnd && flightToDelete.hobbsStart) {
+                    planeToUpdate.currentHobbs -= (flightToDelete.hobbsEnd - flightToDelete.hobbsStart); 
+                }
+                localStorage.setItem('myFleet', JSON.stringify(fleet)); 
+                renderFleet(); 
+            } 
+        } 
+
+        logbook.splice(flightIndex, 1); 
+        localStorage.setItem('myLogbook', JSON.stringify(logbook)); 
         renderFlights();
-    }
+    } 
 });
+
 
 const checklistGrid = document.getElementById('checklistGrid');
 
@@ -598,7 +575,7 @@ function renderMaintenance() { //To render maintenance, we...
         if(item.intervalType === 'hours') {//When asking for hours
             const currentValue = item.hourSource === 'tach'//currentVal is the truth value of source=tach
                 ? (parseFloat(plane?.currentTach) || 0)//If yes, then give currentTach
-                : (parseFloat(plane?.hours) || 0);//If no, then give hours
+                : (parseFloat(plane?.currentHobbs) || 0);//If no, then give hobbs
 
             maxValue = item.intervalValue;
             usedValue = currentValue % maxValue; //Do modulo for the inspections
