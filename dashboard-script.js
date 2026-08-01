@@ -18,7 +18,6 @@ function addAircraft(tailNumber, nameType, hourNumber) {
     localStorage.setItem('myFleet', JSON.stringify(fleet)); //Set it as a json so we can understand it
     renderFleet(); //Then render again since it was updated
     populateAircraftDropdown(); //Then update the dropdown for add flight
-    createMandatoryMaintenance(tailNumber);
     ensureMandatoryMaintenance();
     renderMaintenance();
 }
@@ -47,7 +46,7 @@ function renderFleet() {
                 <p>${plane.name}</p>
                 <p>${plane.hours} Hours</p>
             </div>
-            <button class="edit-button" id=${plane.tail}>...</button>
+            <button class="edit-button" id=${plane.id}>...</button>
         `;
 
         aircraftGrid.appendChild(card);
@@ -513,22 +512,35 @@ function renderMaintenance() { //To render maintenance, we...
 
     maintenance.forEach(item => {
         const plane = fleet.find(p => p.tail === item.tail);
+        if (!plane) return; //This negates the deleted plane still showing cards issue
         const card = document.createElement('div');
         card.className = 'aircraft-card';
 
-        let usedValue, maxValue, remainingText, statusString;
+        let usedValue, maxValue, remainingText, statusString; //Let these be editable
 
-        if (item.intervalType === 'hours') {
-            const currentValue = item.hourSource === 'tach'
-                ? (parseFloat(plane?.currentTach) || 0)
-                : (parseFloat(plane?.hours) || 0);
+        //Trying to debug
+        maintenance.forEach(item => {
+            try {
+                const plane = fleet.find(p => p.tail === item.tail);
+                if (!plane) return;
+                // ... rest of existing code ...
+            } catch (err) {
+                console.error('Failed to render maintenance item:', item, err);
+            }
+        });
 
-            const hoursSince = currentValue - item.lastDoneHours;
-            const remaining = item.intervalValue - hoursSince;
+        if(item.intervalType === 'hours') {//When asking for hours
+            const currentValue = item.hourSource === 'tach'//currentVal is the truth value of source=tach
+                ? (parseFloat(plane?.currentTach) || 0)//If yes, then give currentTach
+                : (parseFloat(plane?.hours) || 0);//If no, then give hours
 
-            usedValue = hoursSince;
             maxValue = item.intervalValue;
+            usedValue = currentValue % maxValue; //Do modulo for the inspections
+
+            const remaining = maxValue - usedValue;
+
             remainingText = `${remaining.toFixed(1)} hrs remaining (${item.hourSource === 'tach' ? 'tach' : 'flight hrs'})`;
+
 
             if (remaining <= 0) {
                 statusString = '<p><strong style="color: red;">OVERDUE</strong></p>';
@@ -539,6 +551,12 @@ function renderMaintenance() { //To render maintenance, we...
             }
         }   else { //calendar-based
             const dueDate = new Date(item.lastDoneDate);
+
+            if(isNaN(dueDate.getTime())){
+                console.warn('Skipping maintenance item with invalid date: ', item);
+                return;
+            }
+
             dueDate.setMonth(dueDate.getMonth() + item.intervalValue);
 
             const daysTotal = item.intervalValue * 30; //rough month-to-day conversion for the bar
@@ -560,7 +578,7 @@ function renderMaintenance() { //To render maintenance, we...
 
         const removeButtonHtml = item.isMandatory
             ? ''
-            : `<button class="remove-maint" id="${item.id}">Remove</button>`;
+            : `<button class="remove-maint" id="${item.description}">Remove</button>`;
 
         const badgeHtml = item.isMandatory
             ? '<span style="font-size:0.75em; color:#888;">REQUIRED</span>'
@@ -573,7 +591,7 @@ function renderMaintenance() { //To render maintenance, we...
                 <progress max='${maxValue}' value='${Math.min(usedValue, maxValue)}'></progress>
                 <p>${remainingText}</p>
                 ${statusString}
-                <button class="edit-maint" id="${item.id}">Edit</button>
+                <button class="edit-maint" id="${item.description}">Edit</button>
                 ${removeButtonHtml}
             </div>
         `;
@@ -582,13 +600,23 @@ function renderMaintenance() { //To render maintenance, we...
 }
 
 maintenanceGrid.addEventListener('click', (event) => {
-    if (event.target.classList.contains('remove-maint')) {
-        const idToRemove = Number(event.target.id);
-        maintenance = maintenance.filter(item => item.id !== idToRemove);
-        localStorage.setItem('myMaintenance', JSON.stringify(maintenance));
-        renderMaintenance();
+  if (event.target.classList.contains('remove-maint')) {
+    const descriptionToRemove = event.target.id;
+    
+    // Find the closest aircraft card element to extract the text/tail context
+    const cardElement = event.target.closest('.aircraft-card');
+    // Find the matching plane in the array where the item description matches
+    const targetItem = maintenance.find(item => item.description === descriptionToRemove);
+    
+    if (targetItem) {
+      // Filter out using BOTH description and tail to protect other planes
+      maintenance = maintenance.filter(item => !(item.description === descriptionToRemove && item.tail === targetItem.tail));
+      localStorage.setItem('myMaintenance', JSON.stringify(maintenance));
+      renderMaintenance();
     }
+  }
 });
+
 
 const MANDATORY_ITEMS = [
     { type: '100hr', description: '100 Hour Inspection', intervalType: 'hours', intervalValue: 100, hourSource: 'tach'},
@@ -597,39 +625,22 @@ const MANDATORY_ITEMS = [
     { type: 'ELT Battery', description: 'ELT Battery/Inspection', intervalType: 'calendar', intervalValue: 12 },
 ];
 
-function createMandatoryMaintenance(tail) {
-    MANDATORY_ITEMS.forEach(template => {
-        maintenance.push({
-            id: Date.now(),
-            tail: tail,
-            type: template.type,
-            description: template.description,
-            intervalType: template.intervalType,
-            intervalValue: template.intervalValue,
-            hourSource: template.hourSource || 'flightHours',
-            lastDoneHours: template.intervalType === 'hours' ? 0 : null,
-            lastDoneDate: template.intervalType === 'calendar' ? new Date().toISOString().split('T')[0] : null,
-            isMandatory: true
-        });
-    });
-    localStorage.setItem('myMaintenance', JSON.stringify(maintenance));
-}
-
-function ensureMandatoryMaintenance() {
+function ensureMandatoryMaintenance() { //This makes sure our required logs are in
     fleet.forEach(plane => {
         MANDATORY_ITEMS.forEach(template => {
             const exists = maintenance.some(item => item.tail === plane.tail && item.type === template.type);
+            
             if (!exists) {
                 maintenance.push({
-                    id: Date.now(),
-                    tail: plane.tail,
-                    type: template.type,
-                    description: template.description,
-                    intervalType: template.intervalType,
-                    intervalValue: template.intervalValue,
-                    lastDoneHours: template.intervalType === 'hours' ? 0 : null,
-                    lastDoneDate: template.intervalType === 'calendar' ? new Date().toISOString().split('T')[0] : null,
-                    isMandatory: true
+                    id: Date.now() + Math.floor(Math.random() * 1000), 
+                    tail: plane.tail, 
+                    type: template.type, 
+                    description: template.description, 
+                    intervalType: template.intervalType, 
+                    intervalValue: template.intervalValue, 
+                    lastDoneHours: template.intervalType === 'hours' ? 0 : null, 
+                    lastDoneDate: template.intervalType === 'calendar' ? new Date().toISOString().split('T')[0] : null, 
+                    isMandatory: true 
                 });
             }
         });
@@ -637,73 +648,6 @@ function ensureMandatoryMaintenance() {
     localStorage.setItem('myMaintenance', JSON.stringify(maintenance));
 }
 
-const editMaintenanceModal = document.getElementById('editMaintenanceModal');
-const closeEditMaintBtn = document.getElementById('closeEditMaintBtn');
-const editMaintenanceForm = document.getElementById('editMaintenanceForm');
-
-let currentEditingMaintId = null;
-
-maintenanceGrid.addEventListener('click', (event) => {
-    if (event.target.classList.contains('edit-maint')) {
-        const idToEdit = Number(event.target.id);
-        const itemToEdit = maintenance.find(item => item.id === idToEdit);
-
-        if (itemToEdit) {
-            currentEditingMaintId = idToEdit;
-
-            //Show only the relevant field based on interval type
-            const hoursField = editMaintenanceForm.querySelector('.hours-field');
-            const calendarField = editMaintenanceForm.querySelector('.calendar-field');
-
-            if (itemToEdit.intervalType === 'hours') {
-                hoursField.style.display = '';
-                calendarField.style.display = 'none';
-                hoursField.value = itemToEdit.lastDoneHours;
-            } else {
-                hoursField.style.display = 'none';
-                calendarField.style.display = '';
-                calendarField.value = itemToEdit.lastDoneDate;
-            }
-
-            editMaintenanceModal.classList.add('active');
-        }
-    }
-
-    if (event.target.classList.contains('remove-maint')) {
-        const idToRemove = Number(event.target.id);
-        maintenance = maintenance.filter(item => item.id !== idToRemove);
-        localStorage.setItem('myMaintenance', JSON.stringify(maintenance));
-        renderMaintenance();
-    }
-});
-
-closeEditMaintBtn.addEventListener('click', () => {
-    editMaintenanceModal.classList.remove('active');
-});
-
-editMaintenanceForm.addEventListener('submit', (event) => {
-    event.preventDefault();
-
-    const newHours = editMaintenanceForm.elements['edit-last-done-hours'].value;
-    const newDate = editMaintenanceForm.elements['edit-last-done-date'].value;
-
-    maintenance = maintenance.map(item => {
-        if (item.id === currentEditingMaintId) {
-            if (item.intervalType === 'hours') {
-                return { ...item, lastDoneHours: parseFloat(newHours) };
-            } else {
-                return { ...item, lastDoneDate: newDate };
-            }
-        }
-        return item;
-    });
-
-    localStorage.setItem('myMaintenance', JSON.stringify(maintenance));
-    renderMaintenance();
-
-    editMaintenanceForm.reset();
-    editMaintenanceModal.classList.remove('active');
-});
 
 function populateMaintPlaneDropdown() {
     const dropdown = document.getElementById('maintPlaneDrop');
