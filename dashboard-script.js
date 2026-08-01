@@ -3,18 +3,34 @@ const openAddBtn = document.getElementById('openAdd');
 
 let fleet = JSON.parse(localStorage.getItem('myFleet')) || []; //Get the fleet from localstorage, otherwise it's empty
 
+fleet = fleet.map(plane => ({
+    ...plane, //Copy from plane(in const newPlane)
+    //But let hours, currentTach, currentHobbs be something else
+    currentTach: parseFloat(plane.currentTach) || 0,
+    currentHobbs: parseFloat(plane.currentHobbs) || 0,
+}));
+
+if (JSON.stringify(fleet) !== localStorage.getItem('myFleet')) {
+    localStorage.setItem('myFleet', JSON.stringify(fleet));
+}
+
 renderFleet(); //Run the function to get the fleet on screen
 
 
-function addAircraft(tailNumber, nameType, hourNumber) {
-    const newPlane = { //To add an aircraft, log an id, tail, name, flight hours
+function addAircraft(tailNumber, nameType, tachCreation, hobbsCreation) {
+    const parsedTach = parseFloat(tachCreation);
+    const parsedHobbs = parseFloat(hobbsCreation);
+
+    const newPlane = {
         id: Date.now(),
-        tail: tailNumber,
-        name: nameType,
-        hours: hourNumber
+        tail: tailNumber.trim(),
+        name: nameType.trim(),
+        //Hobbs and Tach are weird, so we have to give a fallback
+        currentTach: isNaN(parsedTach) ? 0 : parsedTach,
+        currentHobbs: isNaN(parsedHobbs) ? 0 : parsedHobbs,
     };
 
-    fleet.push(newPlane); //Then push to localStorage
+    fleet.push(newPlane);
     localStorage.setItem('myFleet', JSON.stringify(fleet)); //Set it as a json so we can understand it
     renderFleet(); //Then render again since it was updated
     populateAircraftDropdown(); //Then update the dropdown for add flight
@@ -36,6 +52,10 @@ function renderFleet() {
         const card = document.createElement('div');
         card.className = 'aircraft-card';
 
+        const flightHours = parseFloat(plane.hours) || 0;
+        const tachHours = parseFloat(plane.currentTach) || 0;
+        const hobbsHours = parseFloat(plane.currentHobbs) || 0;
+
         card.innerHTML = `
             <svg width="50" height="50" viewBox="0 0 24 24" style="background-color: #e2f4ff; border-radius: 8px;">
             <!--Airplane Icon from google-->
@@ -44,7 +64,8 @@ function renderFleet() {
             <div class="aircraft-info">
                 <h3>${plane.tail}</h3>
                 <p>${plane.name}</p>
-                <p>${plane.hours} Hours</p>
+                <p>Tach: ${tachHours.toFixed(1)}</p> <!--To fixed one means we go to one decimal point--!>
+                <p>Hobbs: ${hobbsHours.toFixed(1)}</p>
             </div>
             <button class="edit-button" id=${plane.tail}>...</button>
         `;
@@ -71,9 +92,10 @@ aircraftForm.addEventListener('submit', (event) => {
 
     const tailInput = aircraftForm.elements['tail-input'].value;
     const nameInput = aircraftForm.elements['name-input'].value;
-    const hoursInput = aircraftForm.elements['hour-input'].value;
+    const tachCreation = aircraftForm.elements['tach-input'].value;
+    const hobbsCreation = aircraftForm.elements['hobbs-input'].value; //Used to be hourInput
 
-    addAircraft(tailInput, nameInput, hoursInput);
+    addAircraft(tailInput, nameInput, tachCreation, hobbsCreation);
 
     aircraftForm.reset();
     addAircraftModal.classList.remove('active');
@@ -257,24 +279,29 @@ flightForm.addEventListener('submit', (event) => {
     const hobbsStart = parseFloat(flightForm.elements['hobbs-start'].value);
     const hobbsEnd = parseFloat(flightForm.elements['hobbs-end'].value);
 
-    let loggedHours;
+    let loggedHours = NaN;
     if (!isNaN(tachStart) && !isNaN(tachEnd)) {
-    loggedHours = tachEnd - tachStart;
+        loggedHours = tachEnd - tachStart;
     } else if (!isNaN(hobbsStart) && !isNaN(hobbsEnd)) {
         loggedHours = hobbsEnd - hobbsStart;
     }
 
     if (isNaN(loggedHours) || loggedHours <= 0) {
-        alert("Please enter valid Hobbs or Tach start/end times.");
+        alert("Please enter valid Hobbs and Tach start/end times.");
         return;
     }
 
     const planeToUpdate = fleet.find(plane => plane.tail === selectedTail);
+    let previousTach = 0;
+    let previousHobbs = 0;
+
     if (planeToUpdate) {
+        previousTach = parseFloat(planeToUpdate.currentTach) || 0;
+        previousHobbs = parseFloat(planeToUpdate.currentHobbs) || 0;
+
         const currentHours = parseFloat(planeToUpdate.hours) || 0;
         planeToUpdate.hours = currentHours + loggedHours;
 
-        //Store the latest tach reading directly on the plane
         if (!isNaN(tachEnd)) {
             planeToUpdate.currentTach = tachEnd;
         }
@@ -294,7 +321,12 @@ flightForm.addEventListener('submit', (event) => {
         origin: originInput || '---',
         dest: destInput || '---',
         hours: loggedHours,
+        tachStart: !isNaN(tachStart) ? tachStart : null,
         tachEnd: !isNaN(tachEnd) ? tachEnd : null,
+        hobbsStart: !isNaN(hobbsStart) ? hobbsStart : null,
+        hobbsEnd: !isNaN(hobbsEnd) ? hobbsEnd : null,
+        previousTach: previousTach,
+        previousHobbs: previousHobbs,
         command: commandRole,
         time: timeInput,
     };
@@ -338,16 +370,22 @@ flightGrid.addEventListener('click', (event) => {
         const flightToDelete = logbook.find(flight => flight.id === flightIdToRemove);
         
         if (flightToDelete) {
-            //Find the plane since we're updating it's hours
             const planeToUpdate = fleet.find(plane => plane.tail === flightToDelete.tail);
             
             if (planeToUpdate) {
-                //Subtract
                 const currentHours = parseFloat(planeToUpdate.hours) || 0;
-                const updatedHours = currentHours - parseFloat(flightToDelete.hours);
-                
-                //Default to 0
-                planeToUpdate.hours = updatedHours > 0 ? updatedHours : 0;
+                const hoursToSubtract = parseFloat(flightToDelete.hours) || 0;
+                planeToUpdate.hours = Math.max(0, currentHours - hoursToSubtract);
+
+                const laterFlights = logbook.filter(flight => flight.tail === flightToDelete.tail && flight.id > flightToDelete.id);
+                const isMostRecentFlight = laterFlights.length === 0;
+
+                if (isMostRecentFlight) {
+                    const restoredTach = parseFloat(flightToDelete.previousTach) ?? 0;
+                    const restoredHobbs = parseFloat(flightToDelete.previousHobbs) ?? 0;
+                    planeToUpdate.currentTach = restoredTach;
+                    planeToUpdate.currentHobbs = restoredHobbs;
+                }
     
                 localStorage.setItem('myFleet', JSON.stringify(fleet));
                 renderFleet();
@@ -469,6 +507,34 @@ commandDrop.addEventListener('change', (e) => {
 
 let maintenance = JSON.parse(localStorage.getItem('myMaintenance')) || [];
 
+if (!Array.isArray(maintenance)) {
+    maintenance = [];//If no array for maintenance, let it be blank
+}
+
+maintenance = maintenance.filter(Boolean).map(item => {//Filter through items
+    //Check if it uses hours or days
+    const intervalType = item.intervalType === 'hours' ? 'hours' : 'calendar';
+    const fallbackDate = new Date().toISOString().split('T')[0]; //Fallback is a /date
+    const normalizedDate = item.lastDoneDate && String(item.lastDoneDate).trim()
+        ? String(item.lastDoneDate).trim()
+        : fallbackDate; //Otherwise we want 2027-08-01 for example
+
+    return {
+        ...item,
+        tail: item.tail || '',
+        type: item.type || 'Custom',
+        description: item.description || '',
+        intervalType,
+        intervalValue: parseFloat(item.intervalValue) || 0,
+        hourSource: item.hourSource || 'flightHours',
+        lastDoneHours: intervalType === 'hours' ? (parseFloat(item.lastDoneHours) || 0) : null,
+        lastDoneDate: normalizedDate,
+        isMandatory: Boolean(item.isMandatory),
+    };
+});
+
+localStorage.setItem('myMaintenance', JSON.stringify(maintenance));
+
 const maintenanceModal = document.getElementById('addMaintenanceModal');
 
 const maintenanceAddButton = document.getElementById('addMaintBtn');
@@ -486,8 +552,8 @@ function prefillStartTimes() {
     const selectedPlane = fleet.find(plane => plane.tail === selectedTail);
 
     if (selectedPlane) {
-        flightForm.elements['tach-start'].value = selectedPlane.currentTach || '';
-        flightForm.elements['hobbs-start'].value = selectedPlane.currentHobbs || '';
+        flightForm.elements['tach-start'].value = selectedPlane.currentTach ?? '';
+        flightForm.elements['hobbs-start'].value = selectedPlane.currentHobbs ?? '';
     }
 }
 
@@ -550,17 +616,14 @@ function renderMaintenance() { //To render maintenance, we...
                 statusString = '<p><strong style="color: green;">OK</strong></p>';
             }
         }   else { //calendar-based
-            const dueDate = new Date(item.lastDoneDate);
+            const parsedDate = new Date(item.lastDoneDate);
+            const safeDate = isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
+            const dueDate = new Date(safeDate);
 
-            if(isNaN(dueDate.getTime())){
-                console.warn('Skipping maintenance item with invalid date: ', item);
-                return;
-            }
+            dueDate.setMonth(dueDate.getMonth() + (parseFloat(item.intervalValue) || 0));
 
-            dueDate.setMonth(dueDate.getMonth() + item.intervalValue);
-
-            const daysTotal = item.intervalValue * 30; //rough month-to-day conversion for the bar
-            const daysSince = Math.floor((Date.now() - new Date(item.lastDoneDate)) / 86400000);
+            const daysTotal = (parseFloat(item.intervalValue) || 0) * 30; //rough month-to-day conversion for the bar
+            const daysSince = Math.max(0, Math.floor((Date.now() - safeDate) / 86400000));
             const daysRemaining = Math.floor((dueDate - Date.now()) / 86400000);
 
             usedValue = daysSince;
