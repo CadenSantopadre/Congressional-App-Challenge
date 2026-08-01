@@ -51,11 +51,11 @@
 </body>
 <!-- Put this at the bottom of index.html, dashboard.html, etc. -->
 <script type="module">
-  // 1. Import BOTH App and Firestore
+  // Import the functions you need from the SDKs you need
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
-  import { getFirestore, collection, addDoc, getDocs, doc, setDoc } from "https://gstatic.com";
+  import { getFirestore, collection, addDoc, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js";
 
-  // 2. Your actual configuration keys
+  // Your web app's Firebase configuration
   const firebaseConfig = {
     apiKey: "AIzaSyDUhA_c_rd3wfzgY2z_tsbmSeBf92nBL8g",
     authDomain: "flighttally-eb7e2.firebaseapp.com",
@@ -66,11 +66,11 @@
     measurementId: "G-PSWH9Q8CNN"
   };
 
-  // 3. Initialize Firebase and Firestore Database
+  // Initialize Firebase
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  // 4. Pass the database tools to your other script files
+  // Make db and its functions available to dashboard-script.js
   window.db = db;
   window.dbFunctions = { collection, addDoc, getDocs, doc, setDoc };
 </script>

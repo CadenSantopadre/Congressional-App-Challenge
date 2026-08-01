@@ -23,7 +23,7 @@ if (signUpForm) {
             const snapshot = await window.dbFunctions.getDocs(fleetCollection);
             
             // Clear and rebuild the local array with cloud data
-            fleet = snapshot.docs.map(doc => ({
+            existingUsers = snapshot.docs.map(doc => ({
             id: doc.id,         // Keeps track of Firebase's unique ID for each plane
             ...doc.data()       // Spreads out your original item properties
             }));
@@ -84,7 +84,7 @@ if (loginForm) {
             const snapshot = await window.dbFunctions.getDocs(fleetCollection);
             
             // Clear and rebuild the local array with cloud data
-            fleet = snapshot.docs.map(doc => ({
+            existingUsers = snapshot.docs.map(doc => ({
             id: doc.id,         // Keeps track of Firebase's unique ID for each plane
             ...doc.data()       // Spreads out your original item properties
             }));
