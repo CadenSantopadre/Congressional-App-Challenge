@@ -14,7 +14,33 @@ if (signUpForm) {
         const lastName = signUpData['last-name-input'];
 
         //Parse the data with a fallback of [] in case there's nothing there
-        const existingUsers = JSON.parse(localStorage.getItem('appUsers')) || [];
+        let existingUsers = [];
+
+        // Function to fetch the fleet from the cloud
+        async function loadUsersFromCloud() {
+        try {
+            const fleetCollection = window.dbFunctions.collection(window.db, "appUsers");
+            const snapshot = await window.dbFunctions.getDocs(fleetCollection);
+            
+            // Clear and rebuild the local array with cloud data
+            fleet = snapshot.docs.map(doc => ({
+            id: doc.id,         // Keeps track of Firebase's unique ID for each plane
+            ...doc.data()       // Spreads out your original item properties
+            }));
+
+            console.log("Cloud users loaded successfully:", fleet);
+            
+            // CRITICAL: Call whatever function you use to display the UI here!
+            // Example: renderFleetUI(); 
+
+        } catch (error) {
+            console.error("Error loading users from cloud:", error);
+        }
+        }
+
+        // Call the function immediately to fetch your data on page load
+        loadUsersFromCloud();
+
 
         //Check if hte email exists by doing .some 
         const emailExists = existingUsers.some(user => user.email === email);
@@ -49,7 +75,32 @@ if (loginForm) {
         const email = loginData['email-input'];
         const password = loginData['password-input'];
 
-        const existingUsers = JSON.parse(localStorage.getItem('appUsers')) || [];
+        let existingUsers = [];
+
+        // Function to fetch the fleet from the cloud
+        async function loadUsersFromCloud() {
+        try {
+            const fleetCollection = window.dbFunctions.collection(window.db, "appUsers");
+            const snapshot = await window.dbFunctions.getDocs(fleetCollection);
+            
+            // Clear and rebuild the local array with cloud data
+            fleet = snapshot.docs.map(doc => ({
+            id: doc.id,         // Keeps track of Firebase's unique ID for each plane
+            ...doc.data()       // Spreads out your original item properties
+            }));
+
+            console.log("Cloud users loaded successfully:", fleet);
+            
+            // CRITICAL: Call whatever function you use to display the UI here!
+            // Example: renderFleetUI(); 
+
+        } catch (error) {
+            console.error("Error loading users from cloud:", error);
+        }
+        }
+
+        // Call the function immediately to fetch your data on page load
+        loadUsersFromCloud();
 
         const matchedUser = existingUsers.find(user => user.email === email && user.password === password);
 

@@ -49,5 +49,33 @@
         </div>
     </footer>
 </body>
-<script src="script.js"></script>
+<!-- Put this at the bottom of index.html, dashboard.html, etc. -->
+<script type="module">
+  // 1. Import BOTH App and Firestore
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, getDocs, doc, setDoc } from "https://gstatic.com";
+
+  // 2. Your actual configuration keys
+  const firebaseConfig = {
+    apiKey: "AIzaSyDUhA_c_rd3wfzgY2z_tsbmSeBf92nBL8g",
+    authDomain: "flighttally-eb7e2.firebaseapp.com",
+    projectId: "flighttally-eb7e2",
+    storageBucket: "flighttally-eb7e2.firebasestorage.app",
+    messagingSenderId: "14280474879",
+    appId: "1:14280474879:web:e85f61760b01638f1c0cca",
+    measurementId: "G-PSWH9Q8CNN"
+  };
+
+  // 3. Initialize Firebase and Firestore Database
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // 4. Pass the database tools to your other script files
+  window.db = db;
+  window.dbFunctions = { collection, addDoc, getDocs, doc, setDoc };
+</script>
+
+<!-- 5. Make sure your script tag has type="module" right after it! -->
+<script src="script.js" type="module"></script>
+
 </html>

@@ -1,7 +1,33 @@
 const aircraftGrid = document.getElementById('aircraftGrid');
 const openAddBtn = document.getElementById('openAdd');
 
-let fleet = JSON.parse(localStorage.getItem('myFleet')) || []; //Get the fleet from localstorage, otherwise it's empty
+let fleet = [];
+
+// Function to fetch the fleet from the cloud
+async function loadFleetFromCloud() {
+  try {
+    const fleetCollection = window.dbFunctions.collection(window.db, "myFleet");
+    const snapshot = await window.dbFunctions.getDocs(fleetCollection);
+    
+    // Clear and rebuild the local array with cloud data
+    fleet = snapshot.docs.map(doc => ({
+      id: doc.id,         // Keeps track of Firebase's unique ID for each plane
+      ...doc.data()       // Spreads out your original item properties
+    }));
+
+    console.log("Cloud fleet loaded successfully:", fleet);
+    
+    // CRITICAL: Call whatever function you use to display the UI here!
+    // Example: renderFleetUI(); 
+
+  } catch (error) {
+    console.error("Error loading fleet from cloud:", error);
+  }
+}
+
+// Call the function immediately to fetch your data on page load
+loadFleetFromCloud();
+//Get the fleet from localstorage, otherwise it's empty
 
 fleet = fleet.map(plane => ({
     ...plane, //Copy from plane(in const newPlane)
@@ -17,26 +43,42 @@ if (JSON.stringify(fleet) !== localStorage.getItem('myFleet')) {
 renderFleet(); //Run the function to get the fleet on screen
 
 
-function addAircraft(tailNumber, nameType, tachCreation, hobbsCreation) {
-    const parsedTach = parseFloat(tachCreation);
-    const parsedHobbs = parseFloat(hobbsCreation);
+// 1. Added 'async' so we can use 'await' for the cloud save
+async function addAircraft(tailNumber, nameType, tachCreation, hobbsCreation) { 
+  const parsedTach = parseFloat(tachCreation); 
+  const parsedHobbs = parseFloat(hobbsCreation); 
+  
+  // 2. We removed 'id: Date.now()' because Firebase creates a better, unique ID for us
+  const newPlane = { 
+    tail: tailNumber.trim(), 
+    name: nameType.trim(), 
+    currentTach: isNaN(parsedTach) ? 0 : parsedTach, 
+    currentHobbs: isNaN(parsedHobbs) ? 0 : parsedHobbs, 
+  }; 
 
-    const newPlane = {
-        id: Date.now(),
-        tail: tailNumber.trim(),
-        name: nameType.trim(),
-        //Hobbs and Tach are weird, so we have to give a fallback
-        currentTach: isNaN(parsedTach) ? 0 : parsedTach,
-        currentHobbs: isNaN(parsedHobbs) ? 0 : parsedHobbs,
-    };
+  try {
+    // 3. Save the plane data directly to your Firestore cloud collection
+    const fleetCollection = window.dbFunctions.collection(window.db, "myFleet");
+    const docRef = await window.dbFunctions.addDoc(fleetCollection, newPlane);
 
-    fleet.push(newPlane);
-    localStorage.setItem('myFleet', JSON.stringify(fleet)); //Set it as a json so we can understand it
-    renderFleet(); //Then render again since it was updated
-    populateAircraftDropdown(); //Then update the dropdown for add flight
-    ensureMandatoryMaintenance();
+    // 4. Push to your local array, but include the new cloud ID
+    fleet.push({
+      id: docRef.id, 
+      ...newPlane
+    });
+
+    // 5. Your existing UI updates run perfectly right here!
+    renderFleet(); 
+    populateAircraftDropdown(); 
+    ensureMandatoryMaintenance(); 
     renderMaintenance();
+
+  } catch (error) {
+    console.error("Failed to save aircraft to the cloud database:", error);
+    alert("Error saving to cloud. Please check your internet connection.");
+  }
 }
+
 
 
 function renderFleet() {
@@ -245,7 +287,33 @@ const closeFlightBtn = document.getElementById('closeFlightBtn');
 const flightForm = document.getElementById('flightForm'); 
 const flightGrid = document.getElementById('flightGrid'); 
 
-let logbook = JSON.parse(localStorage.getItem('myLogbook')) || []; 
+let logbook = [];
+
+// Function to fetch the fleet from the cloud
+async function loadLogbookFromCloud() {
+  try {
+    const fleetCollection = window.dbFunctions.collection(window.db, "myLogbook");
+    const snapshot = await window.dbFunctions.getDocs(fleetCollection);
+    
+    // Clear and rebuild the local array with cloud data
+    logbook = snapshot.docs.map(doc => ({
+      id: doc.id,         // Keeps track of Firebase's unique ID for each plane
+      ...doc.data()       // Spreads out your original item properties
+    }));
+
+    console.log("Cloud logbook loaded successfully:", fleet);
+    
+    // CRITICAL: Call whatever function you use to display the UI here!
+    // Example: renderFleetUI(); 
+
+  } catch (error) {
+    console.error("Error loading logbook from cloud:", error);
+  }
+}
+
+// Call the function immediately to fetch your data on page load
+loadLogbookFromCloud();
+
 
 function populateAircraftDropdown() { 
     const selectDropdown = document.getElementById("planeDrop"); 
@@ -267,63 +335,92 @@ closeFlightBtn.addEventListener('click', () => {
     addFlightModal.classList.remove('active'); 
 }); 
 
-flightForm.addEventListener('submit', (event) => { 
-    event.preventDefault(); 
-    const selectedTail = document.getElementById('planeDrop').value; 
-    const dateInput = flightForm.elements['date-input'].value; 
-    const originInput = flightForm.elements['origin-input'].value.trim().toUpperCase(); 
-    const destInput = flightForm.elements['dest-input'].value.trim().toUpperCase(); 
-    const commandRole = document.getElementById('commandDrop').value; 
-    const timeInput = document.getElementById('timeDrop').value; 
-    
-    const tachStart = parseFloat(flightForm.elements['tach-start'].value); 
-    const tachEnd = parseFloat(flightForm.elements['tach-end'].value); 
-    const hobbsStart = parseFloat(flightForm.elements['hobbs-start'].value); 
-    const hobbsEnd = parseFloat(flightForm.elements['hobbs-end'].value); 
+// 1. Added 'async' so we can handle cloud operations inside
+flightForm.addEventListener('submit', async (event) => { 
+  event.preventDefault(); 
+  
+  const selectedTail = document.getElementById('planeDrop').value; 
+  const dateInput = flightForm.elements['date-input'].value; 
+  const originInput = flightForm.elements['origin-input'].value.trim().toUpperCase(); 
+  const destInput = flightForm.elements['dest-input'].value.trim().toUpperCase(); 
+  const commandRole = document.getElementById('commandDrop').value; 
+  const timeInput = document.getElementById('timeDrop').value; 
+  const tachStart = parseFloat(flightForm.elements['tach-start'].value); 
+  const tachEnd = parseFloat(flightForm.elements['tach-end'].value); 
+  const hobbsStart = parseFloat(flightForm.elements['hobbs-start'].value); 
+  const hobbsEnd = parseFloat(flightForm.elements['hobbs-end'].value); 
+  
+  let loggedHours = NaN; 
+  if (!isNaN(tachStart) && !isNaN(tachEnd)) { 
+    loggedHours = tachEnd - tachStart; 
+  } else if (!isNaN(hobbsStart) && !isNaN(hobbsEnd)) { 
+    loggedHours = hobbsEnd - hobbsStart; 
+  } 
+  
+  if (isNaN(loggedHours) || loggedHours <= 0) { 
+    alert("Please enter valid Hobbs and Tach start/end times."); 
+    return; 
+  } 
 
-    let loggedHours = NaN; 
-    if (!isNaN(tachStart) && !isNaN(tachEnd)) { 
-        loggedHours = tachEnd - tachStart; 
-    } else if (!isNaN(hobbsStart) && !isNaN(hobbsEnd)) { 
-        loggedHours = hobbsEnd - hobbsStart; 
-    } 
+  const planeToUpdate = fleet.find(plane => plane.tail === selectedTail); 
+  
+  // ACTION 1: UPDATE THE AIRCRAFT HOURS IN THE CLOUD
+  if (planeToUpdate) { 
+    if (!isNaN(tachEnd)) { planeToUpdate.currentTach = tachEnd; } 
+    if (!isNaN(hobbsEnd)) { planeToUpdate.currentHobbs = hobbsEnd; } 
 
-    if (isNaN(loggedHours) || loggedHours <= 0) { 
-        alert("Please enter valid Hobbs and Tach start/end times."); 
-        return; 
-    } 
+    try {
+      // Create a reference directly to this specific plane's cloud file using its unique ID
+      const planeDocRef = window.dbFunctions.doc(window.db, "myFleet", planeToUpdate.id);
+      
+      // Update just the hour metrics on the server
+      await window.dbFunctions.setDoc(planeDocRef, {
+        currentTach: planeToUpdate.currentTach,
+        currentHobbs: planeToUpdate.currentHobbs
+      }, { merge: true }); // 'merge: true' prevents overwriting other properties like name or tail
 
-    const planeToUpdate = fleet.find(plane => plane.tail === selectedTail); 
-    if (planeToUpdate) { 
-        if (!isNaN(tachEnd)) { planeToUpdate.currentTach = tachEnd; } 
-        if (!isNaN(hobbsEnd)) { planeToUpdate.currentHobbs = hobbsEnd; } 
-        localStorage.setItem('myFleet', JSON.stringify(fleet)); 
-        renderFleet(); 
-        renderMaintenance(); 
-    } 
+      renderFleet(); 
+      renderMaintenance(); 
+    } catch (error) {
+      console.error("Failed to update aircraft hours in the cloud:", error);
+    }
+  } 
 
-    const newFlight = { 
-        id: Date.now(), 
-        tail: selectedTail, 
-        date: dateInput || new Date().toISOString().split('T')[0], 
-        origin: originInput || '---', 
-        dest: destInput || '---', 
-        hours: loggedHours.toFixed(1),
-        tachStart: !isNaN(tachStart) ? tachStart : null, 
-        tachEnd: !isNaN(tachEnd) ? tachEnd : null, 
-        hobbsStart: !isNaN(hobbsStart) ? hobbsStart : null, 
-        hobbsEnd: !isNaN(hobbsEnd) ? hobbsEnd : null, 
-        command: commandRole, 
-        time: timeInput, 
-    }; 
+  // ACTION 2: SAVE THE NEW FLIGHT LOG TO THE CLOUD
+  const newFlight = { 
+    tail: selectedTail, 
+    date: dateInput || new Date().toISOString().split('T')[0], 
+    origin: originInput || '---', 
+    dest: destInput || '---', 
+    hours: loggedHours.toFixed(1), 
+    tachStart: !isNaN(tachStart) ? tachStart : null, 
+    tachEnd: !isNaN(tachEnd) ? tachEnd : null, 
+    hobbsStart: !isNaN(hobbsStart) ? hobbsStart : null, 
+    hobbsEnd: !isNaN(hobbsEnd) ? hobbsEnd : null, 
+    command: commandRole, 
+    time: timeInput, 
+  }; 
 
-    logbook.push(newFlight); 
-    localStorage.setItem('myLogbook', JSON.stringify(logbook)); 
-    
+  try {
+    // Save flight data into a brand-new cloud collection called "myLogbook"
+    const logbookCollection = window.dbFunctions.collection(window.db, "myLogbook");
+    const docRef = await window.dbFunctions.addDoc(logbookCollection, newFlight);
+
+    // Push to your local logbook array incorporating the new cloud ID
+    logbook.push({
+      id: docRef.id,
+      ...newFlight
+    });
+
     renderFlights(); 
     flightForm.reset(); 
     addFlightModal.classList.remove('active'); 
-}); 
+  } catch (error) {
+    console.error("Failed to save new flight log to the cloud:", error);
+    alert("Error logging flight to the cloud. Your local layout was not updated.");
+  }
+});
+
 
 populateAircraftDropdown(); 
 renderFlights();
@@ -482,7 +579,33 @@ commandDrop.addEventListener('change', (e) => {
   }
 });
 
-let maintenance = JSON.parse(localStorage.getItem('myMaintenance')) || [];
+let maintenance = [];
+
+// Function to fetch the fleet from the cloud
+async function loadMaintFromCloud() {
+  try {
+    const fleetCollection = window.dbFunctions.collection(window.db, "myMaintenance");
+    const snapshot = await window.dbFunctions.getDocs(fleetCollection);
+    
+    // Clear and rebuild the local array with cloud data
+    maintenance = snapshot.docs.map(doc => ({
+      id: doc.id,         // Keeps track of Firebase's unique ID for each plane
+      ...doc.data()       // Spreads out your original item properties
+    }));
+
+    console.log("Cloud maint loaded successfully:", fleet);
+    
+    // CRITICAL: Call whatever function you use to display the UI here!
+    // Example: renderFleetUI(); 
+
+  } catch (error) {
+    console.error("Error loading maint from cloud:", error);
+  }
+}
+
+// Call the function immediately to fetch your data on page load
+loadMaintFromCloud();
+
 
 if (!Array.isArray(maintenance)) {
     maintenance = [];//If no array for maintenance, let it be blank
@@ -665,28 +788,45 @@ const MANDATORY_ITEMS = [
     { type: 'ELT Battery', description: 'ELT Battery/Inspection', intervalType: 'calendar', intervalValue: 12 },
 ];
 
-function ensureMandatoryMaintenance() { //This makes sure our required logs are in
-    fleet.forEach(plane => {
-        MANDATORY_ITEMS.forEach(template => {
-            const exists = maintenance.some(item => item.tail === plane.tail && item.type === template.type);
-            
-            if (!exists) {
-                maintenance.push({
-                    id: Date.now() + Math.floor(Math.random() * 1000), 
-                    tail: plane.tail, 
-                    type: template.type, 
-                    description: template.description, 
-                    intervalType: template.intervalType, 
-                    intervalValue: template.intervalValue, 
-                    lastDoneHours: template.intervalType === 'hours' ? 0 : null, 
-                    lastDoneDate: template.intervalType === 'calendar' ? new Date().toISOString().split('T')[0] : null, 
-                    isMandatory: true 
-                });
-            }
-        });
-    });
-    localStorage.setItem('myMaintenance', JSON.stringify(maintenance));
+// 1. Made 'async' so we can save missing items to the cloud
+async function ensureMandatoryMaintenance() { 
+  // We use a for...of loop here instead of forEach so 'await' works correctly
+  for (const plane of fleet) {
+    for (const template of MANDATORY_ITEMS) {
+      const exists = maintenance.some(item => item.tail === plane.tail && item.type === template.type); 
+      
+      if (!exists) { 
+        const newMandatoryItem = {
+          tail: plane.tail, 
+          type: template.type, 
+          description: template.description, 
+          intervalType: template.intervalType, 
+          intervalValue: template.intervalValue, 
+          lastDoneHours: template.intervalType === 'hours' ? 0 : null, 
+          lastDoneDate: template.intervalType === 'calendar' ? new Date().toISOString().split('T')[0] : null, 
+          isMandatory: true 
+        };
+
+        try {
+          // 2. Save directly to the cloud "myMaintenance" collection
+          const maintCollection = window.dbFunctions.collection(window.db, "myMaintenance");
+          const docRef = await window.dbFunctions.addDoc(maintCollection, newMandatoryItem);
+
+          // 3. Push to your local array with the cloud ID
+          maintenance.push({ 
+            id: docRef.id, 
+            ...newMandatoryItem 
+          });
+        } catch (error) {
+          console.error("Error creating mandatory check in cloud:", error);
+        }
+      } 
+    }
+  } 
+  
+  // 4. Removed the old localStorage line—the local array is now fully updated and synced!
 }
+
 
 
 function populateMaintPlaneDropdown() {
@@ -705,41 +845,57 @@ maintenanceAddButton.addEventListener('click', () => {
 
 const maintenanceForm = document.getElementById('maintenanceForm');
 
-maintenanceForm.addEventListener('submit', (event) => {
-    event.preventDefault();
+// 1. Added 'async' to the arrow function
+maintenanceForm.addEventListener('submit', async (event) => { 
+  event.preventDefault(); 
+  
+  const selectedTail = document.getElementById('maintPlaneDrop').value; 
+  const description = maintenanceForm.elements['maint-description'].value.trim(); 
+  const intervalType = document.getElementById('intervalTypeDrop').value; 
+  const intervalValue = parseFloat(maintenanceForm.elements['interval-value'].value); 
+  const lastDoneHours = maintenanceForm.elements['last-done-hours'].value; 
+  const lastDoneDate = maintenanceForm.elements['last-done-date'].value; 
+  const hourSource = document.getElementById('hourSourceDrop')?.value || 'flightHours'; 
+  
+  if (!selectedTail || !description || isNaN(intervalValue)) { 
+    alert("Please fill out all required fields."); 
+    return; 
+  } 
 
-    const selectedTail = document.getElementById('maintPlaneDrop').value;
-    const description = maintenanceForm.elements['maint-description'].value.trim();
-    const intervalType = document.getElementById('intervalTypeDrop').value; // 'hours' or 'calendar'
-    const intervalValue = parseFloat(maintenanceForm.elements['interval-value'].value);
-    const lastDoneHours = maintenanceForm.elements['last-done-hours'].value;
-    const lastDoneDate = maintenanceForm.elements['last-done-date'].value;
-    const hourSource = document.getElementById('hourSourceDrop')?.value || 'flightHours';
+  const newCustomMaint = {
+    tail: selectedTail, 
+    type: 'Custom', 
+    description: description, 
+    intervalType: intervalType, 
+    intervalValue: intervalValue, 
+    hourSource: hourSource, 
+    lastDoneHours: intervalType === 'hours' ? parseFloat(lastDoneHours) || 0 : null, 
+    lastDoneDate: intervalType === 'calendar' ? (lastDoneDate || new Date().toISOString().split('T')[0]) : null, 
+    isMandatory: false 
+  };
 
-    if (!selectedTail || !description || isNaN(intervalValue)) {
-        alert("Please fill out all required fields.");
-        return;
-    }
+  try {
+    // 2. Save custom log to Firestore
+    const maintCollection = window.dbFunctions.collection(window.db, "myMaintenance");
+    const docRef = await window.dbFunctions.addDoc(maintCollection, newCustomMaint);
 
+    // 3. Push to local array using the cloud ID
     maintenance.push({
-        id: Date.now(),
-        tail: selectedTail,
-        type: 'Custom',
-        description: description,
-        intervalType: intervalType,
-        intervalValue: intervalValue,
-        hourSource: hourSource,
-        lastDoneHours: intervalType === 'hours' ? parseFloat(lastDoneHours) || 0 : null,
-        lastDoneDate: intervalType === 'calendar' ? (lastDoneDate || new Date().toISOString().split('T')[0]) : null,
-        isMandatory: false
+      id: docRef.id,
+      ...newCustomMaint
     });
 
-    localStorage.setItem('myMaintenance', JSON.stringify(maintenance));
-    renderMaintenance();
+    // 4. Trigger existing UI code
+    renderMaintenance(); 
+    maintenanceForm.reset(); 
+    maintenanceModal.classList.remove('active'); 
 
-    maintenanceForm.reset();
-    maintenanceModal.classList.remove('active');
+  } catch (error) {
+    console.error("Failed to save custom maintenance item to the cloud:", error);
+    alert("Error saving maintenance record to the cloud.");
+  }
 });
+
 
 
 document.getElementById('intervalTypeDrop').addEventListener('change', (e) => {
