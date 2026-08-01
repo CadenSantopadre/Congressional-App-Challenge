@@ -18,6 +18,9 @@ function addAircraft(tailNumber, nameType, hourNumber) {
     localStorage.setItem('myFleet', JSON.stringify(fleet)); //Set it as a json so we can understand it
     renderFleet(); //Then render again since it was updated
     populateAircraftDropdown(); //Then update the dropdown for add flight
+    createMandatoryMaintenance(tailNumber);
+    ensureMandatoryMaintenance();
+    renderMaintenance();
 }
 
 
@@ -253,10 +256,9 @@ flightForm.addEventListener('submit', (event) => {
     const hobbsStart = parseFloat(flightForm.elements['hobbs-start'].value);
     const hobbsEnd = parseFloat(flightForm.elements['hobbs-end'].value);
 
-    //Prefer tach time since maintenance intervals (100hr, oil changes) are tach-based
     let loggedHours;
     if (!isNaN(tachStart) && !isNaN(tachEnd)) {
-        loggedHours = tachEnd - tachStart;
+    loggedHours = tachEnd - tachStart;
     } else if (!isNaN(hobbsStart) && !isNaN(hobbsEnd)) {
         loggedHours = hobbsEnd - hobbsStart;
     }
@@ -271,9 +273,13 @@ flightForm.addEventListener('submit', (event) => {
         const currentHours = parseFloat(planeToUpdate.hours) || 0;
         planeToUpdate.hours = currentHours + loggedHours;
 
-        //Store the latest tach reading directly on the plane - this is what maintenance items check against
+        //Store the latest tach reading directly on the plane
         if (!isNaN(tachEnd)) {
             planeToUpdate.currentTach = tachEnd;
+        }
+
+        if (!isNaN(hobbsEnd)) {
+            planeToUpdate.currentHobbs = hobbsEnd;
         }
 
         localStorage.setItem('myFleet', JSON.stringify(fleet));
@@ -460,89 +466,171 @@ commandDrop.addEventListener('change', (e) => {
   }
 });
 
-let maintenance = JSON.parse(localStorage.getItem('Maintenance')) || [];
+let maintenance = JSON.parse(localStorage.getItem('myMaintenance')) || [];
 
-function addMaintenanceItem(tail, type, description, intervalType, intervalValue, lastDoneValue) {
-    //intervalType is either 'hours' (tach-based, e.g. 100hr/Annual/oil) or 'calendar' (e.g. transponder, VOR, ELT)
-    const newItem = {
-        id: Date.now(),
-        tail: tail,
-        type: type, //'100hr', 'Annual', 'Oil Change', 'Transponder', 'Pitot-Static', 'VOR Check', 'ELT Battery', 'Custom'
-        description: description,
-        intervalType: intervalType,
-        intervalValue: parseFloat(intervalValue), //hours OR months, depending on intervalType
-        lastDoneHours: intervalType === 'hours' ? parseFloat(lastDoneValue) : null,
-        lastDoneDate: intervalType === 'calendar' ? lastDoneValue : null //expects 'YYYY-MM-DD'
-    };
+const maintenanceModal = document.getElementById('addMaintenanceModal');
 
-    maintenance.push(newItem);
-    localStorage.setItem('Maintenance', JSON.stringify(maintenance));
-    renderMaintenance();
-}
+const maintenanceAddButton = document.getElementById('addMaintBtn');
+maintenanceAddButton.addEventListener('click', () => {
+    maintenanceModal.classList.add('active');
+});
 
-function getMaintenanceStatus(item) {
-    const plane = fleet.find(p => p.tail === item.tail);
-    if (!plane) return { status: 'unknown' };
+const maintenanceCloseButton = document.getElementById('closeMaintBtn');
+maintenanceCloseButton.addEventListener('click', () => {
+    maintenanceModal.classList.remove('active');
+});
 
-    if (item.intervalType === 'hours') {
-        const currentTach = parseFloat(plane.currentTach) || 0;
-        const hoursSince = currentTach - item.lastDoneHours;
-        const hoursRemaining = item.intervalValue - hoursSince;
+function prefillStartTimes() {
+    const selectedTail = document.getElementById('planeDrop').value;
+    const selectedPlane = fleet.find(plane => plane.tail === selectedTail);
 
-        return {
-            unit: 'hours',
-            remaining: hoursRemaining,
-            status: hoursRemaining <= 0 ? 'overdue' : hoursRemaining <= 10 ? 'due-soon' : 'ok'
-        };
-    } else {
-        const dueDate = new Date(item.lastDoneDate);
-        dueDate.setMonth(dueDate.getMonth() + item.intervalValue);
-        const daysRemaining = Math.floor((dueDate - Date.now()) / 86400000);
-
-        return {
-            unit: 'days',
-            remaining: daysRemaining,
-            dueDate: dueDate.toISOString().split('T')[0],
-            status: daysRemaining <= 0 ? 'overdue' : daysRemaining <= 30 ? 'due-soon' : 'ok'
-        };
+    if (selectedPlane) {
+        flightForm.elements['tach-start'].value = selectedPlane.currentTach || '';
+        flightForm.elements['hobbs-start'].value = selectedPlane.currentHobbs || '';
     }
 }
 
+addFlightButton.addEventListener('click', () => {
+    populateAircraftDropdown();
+    prefillStartTimes(); //Prefill after dropdown is populated so there's a selected plane
+    addFlightModal.classList.add('active');
+});
+
+document.getElementById('planeDrop').addEventListener('change', prefillStartTimes);
+
+const maintenanceGrid = document.getElementById('maintenanceGrid');
+
 function renderMaintenance() {
-    const maintGrid = document.getElementById('maintenanceGrid');
-    if (!maintGrid) return;
-    maintGrid.innerHTML = '';
+    maintenanceGrid.innerHTML = '';
 
     if (maintenance.length === 0) {
-        maintGrid.innerHTML = '<p class="empty-state">No maintenance items tracked yet.</p>';
+        maintenanceGrid.innerHTML = '<p class="empty-state">No maintenance items tracked yet.</p>';
         return;
     }
 
-    maintenance.forEach(item => {
-        const { unit, remaining, status, dueDate } = getMaintenanceStatus(item);
-        const statusColor = status === 'overdue' ? 'red' : status === 'due-soon' ? 'orange' : 'green';
-        const statusText = status === 'overdue' ? 'OVERDUE' : status === 'due-soon' ? 'Due Soon' : 'OK';
+    const sorted = [...maintenance].sort((a, b) => (b.isMandatory === true) - (a.isMandatory === true));
 
+    sorted.forEach(item => {
+        const plane = fleet.find(p => p.tail === item.tail);
         const card = document.createElement('div');
         card.className = 'aircraft-card';
+
+        let usedValue, maxValue, remainingText, statusString;
+
+        if (item.intervalType === 'hours') {
+            const currentTach = parseFloat(plane?.currentTach) || 0;
+            const hoursSince = currentTach - item.lastDoneHours;
+            const remaining = item.intervalValue - hoursSince;
+
+            usedValue = hoursSince;
+            maxValue = item.intervalValue;
+            remainingText = `${remaining.toFixed(1)} hrs remaining`;
+
+            if (remaining <= 0) {
+                statusString = '<p><strong style="color: red;">OVERDUE</strong></p>';
+            } else if (remaining <= 10) {
+                statusString = '<p><strong style="color: orange;">Due Soon</strong></p>';
+            } else {
+                statusString = '<p><strong style="color: green;">OK</strong></p>';
+            }
+        } else { //calendar-based
+            const dueDate = new Date(item.lastDoneDate);
+            dueDate.setMonth(dueDate.getMonth() + item.intervalValue);
+
+            const daysTotal = item.intervalValue * 30; //rough month-to-day conversion for the bar
+            const daysSince = Math.floor((Date.now() - new Date(item.lastDoneDate)) / 86400000);
+            const daysRemaining = Math.floor((dueDate - Date.now()) / 86400000);
+
+            usedValue = daysSince;
+            maxValue = daysTotal;
+            remainingText = `Due ${dueDate.toISOString().split('T')[0]} (${daysRemaining} days)`;
+
+            if (daysRemaining <= 0) {
+                statusString = '<p><strong style="color: red;">OVERDUE</strong></p>';
+            } else if (daysRemaining <= 30) {
+                statusString = '<p><strong style="color: orange;">Due Soon</strong></p>';
+            } else {
+                statusString = '<p><strong style="color: green;">OK</strong></p>';
+            }
+        }
+
+        const removeButtonHtml = item.isMandatory
+            ? ''
+            : `<button class="remove-maint" id="${item.id}">Remove</button>`;
+
+        const badgeHtml = item.isMandatory
+            ? '<span style="font-size:0.75em; color:#888;">REQUIRED</span>'
+            : '<span style="font-size:0.75em; color:#888;">CUSTOM</span>';
+
         card.innerHTML = `
             <div class="aircraft-info">
-                <h3>${item.type} - ${item.tail}</h3>
+                <h3>${item.type} - ${item.tail} ${badgeHtml}</h3>
                 <p>${item.description}</p>
-                <p>${unit === 'hours' ? `${remaining.toFixed(1)} hrs remaining` : `Due ${dueDate} (${remaining} days)`}</p>
-                <p><strong style="color: ${statusColor};">${statusText}</strong></p>
-                <button class="remove-maint" id="${item.id}">Remove</button>
+                <progress max='${maxValue}' value='${Math.min(usedValue, maxValue)}'></progress>
+                <p>${remainingText}</p>
+                ${statusString}
+                <button class="edit-maint" id="${item.id}">Edit</button>
+                ${removeButtonHtml}
             </div>
         `;
-        maintGrid.appendChild(card);
+        maintenanceGrid.appendChild(card);
     });
 }
 
-document.getElementById('maintenanceGrid')?.addEventListener('click', (event) => {
+maintenanceGrid.addEventListener('click', (event) => {
     if (event.target.classList.contains('remove-maint')) {
         const idToRemove = Number(event.target.id);
         maintenance = maintenance.filter(item => item.id !== idToRemove);
-        localStorage.setItem('Maintenance', JSON.stringify(maintenance));
+        localStorage.setItem('myMaintenance', JSON.stringify(maintenance));
         renderMaintenance();
     }
 });
+
+const MANDATORY_ITEMS = [
+    { type: '100hr',         description: '100 Hour Inspection',      intervalType: 'hours',    intervalValue: 100 },
+    { type: 'Annual',        description: 'Annual Inspection',        intervalType: 'calendar', intervalValue: 12 },
+    { type: 'Transponder',   description: 'Transponder/Pitot-Static Check (91.411/91.413)', intervalType: 'calendar', intervalValue: 24 },
+    { type: 'ELT Battery',   description: 'ELT Battery/Inspection',   intervalType: 'calendar', intervalValue: 12 },
+];
+
+function createMandatoryMaintenance(tail) {
+    MANDATORY_ITEMS.forEach(template => {
+        maintenance.push({
+            id: Date.now() + Math.random(), //avoid collisions when several get made in the same tick
+            tail: tail,
+            type: template.type,
+            description: template.description,
+            intervalType: template.intervalType,
+            intervalValue: template.intervalValue,
+            lastDoneHours: template.intervalType === 'hours' ? 0 : null,
+            lastDoneDate: template.intervalType === 'calendar' ? new Date().toISOString().split('T')[0] : null,
+            isMandatory: true
+        });
+    });
+    localStorage.setItem('myMaintenance', JSON.stringify(maintenance));
+}
+
+function ensureMandatoryMaintenance() {
+    fleet.forEach(plane => {
+        MANDATORY_ITEMS.forEach(template => {
+            const exists = maintenance.some(item => item.tail === plane.tail && item.type === template.type);
+            if (!exists) {
+                maintenance.push({
+                    id: Date.now() + Math.random(),
+                    tail: plane.tail,
+                    type: template.type,
+                    description: template.description,
+                    intervalType: template.intervalType,
+                    intervalValue: template.intervalValue,
+                    lastDoneHours: template.intervalType === 'hours' ? 0 : null,
+                    lastDoneDate: template.intervalType === 'calendar' ? new Date().toISOString().split('T')[0] : null,
+                    isMandatory: true
+                });
+            }
+        });
+    });
+    localStorage.setItem('myMaintenance', JSON.stringify(maintenance));
+}
+
+ensureMandatoryMaintenance();
+renderMaintenance();
