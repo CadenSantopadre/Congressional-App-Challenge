@@ -46,7 +46,7 @@ function renderFleet() {
                 <p>${plane.name}</p>
                 <p>${plane.hours} Hours</p>
             </div>
-            <button class="edit-button" id=${plane.id}>...</button>
+            <button class="edit-button" id=${plane.tail}>...</button>
         `;
 
         aircraftGrid.appendChild(card);
