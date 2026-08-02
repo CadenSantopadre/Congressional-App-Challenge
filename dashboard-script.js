@@ -1,6 +1,6 @@
 const aircraftGrid = document.getElementById('aircraftGrid');
 const openAddBtn = document.getElementById('openAdd');
-
+let currentEditingTail;
 let fleet = [];
 
 // Function to fetch the fleet from the cloud
@@ -8,24 +8,26 @@ async function loadFleetFromCloud() {
   try {
     const fleetCollection = window.dbFunctions.collection(window.db, "myFleet");
     const snapshot = await window.dbFunctions.getDocs(fleetCollection);
-    
-    // Clear and rebuild the local array with cloud data
+
     fleet = snapshot.docs.map(doc => ({
-      id: doc.id,         // Keeps track of Firebase's unique ID for each plane
-      ...doc.data()       // Spreads out your original item properties
+      id: doc.id,
+      ...doc.data(),
+      currentTach: parseFloat(doc.data().currentTach) || 0,
+      currentHobbs: parseFloat(doc.data().currentHobbs) || 0,
     }));
 
     console.log("Cloud fleet loaded successfully:", fleet);
-    
-    // CRITICAL: Call whatever function you use to display the UI here!
-    // Example: renderFleetUI(); 
+
+    renderFleet();           // ← actually update the UI now that data arrived
+    populateAircraftDropdown();
+    ensureMandatoryMaintenance();
+    renderMaintenance();
 
   } catch (error) {
     console.error("Error loading fleet from cloud:", error);
   }
 }
 
-// Call the function immediately to fetch your data on page load
 loadFleetFromCloud();
 //Get the fleet from localstorage, otherwise it's empty
 
@@ -169,7 +171,7 @@ closeEditBtn.addEventListener('click', () => {
     editAircraftModal.classList.remove('active');
 });
 
-editAircraftForm.addEventListener('submit', (event) => {
+editAircraftForm.addEventListener('submit', async (event) => {
     event.preventDefault();
 
     const updatedTail = editAircraftForm.elements['edit-tail-input'].value.trim();
@@ -177,22 +179,38 @@ editAircraftForm.addEventListener('submit', (event) => {
     const updatedTach = editAircraftForm.elements['edit-tach-input'].value.trim();
     const updatedHobbs = editAircraftForm.elements['edit-hobbs-input'].value.trim();
 
-    if (!updatedTail && !updatedName && !updatedTach && !updatedHobbs) {//If everyhting is blank...
+    const planeToEdit = fleet.find(plane => plane.tail === currentEditingTail);
+    if (!planeToEdit) return;
 
-        fleet = fleet.filter(plane => plane.tail !== currentEditingTail);//Delete it
-    } else {
-        fleet = fleet.map(plane => {
-            if (plane.tail === currentEditingTail) {
-                return { ...plane, tail: updatedTail, name: updatedName, currentTach: updatedTach, currentHobbs: updatedHobbs}; //Otherwise copy everything with updated stuff
-            }
-            return plane;
-        });
+    try {
+        const planeDocRef = window.dbFunctions.doc(window.db, "myFleet", planeToEdit.id);
+
+        if (!updatedTail && !updatedName && !updatedTach && !updatedHobbs) {
+            // Blank form = delete this aircraft from Firestore
+            await window.dbFunctions.deleteDoc(planeDocRef);
+            fleet = fleet.filter(plane => plane.tail !== currentEditingTail);
+        } else {
+            // Otherwise, update it in Firestore
+            const updates = {
+                tail: updatedTail,
+                name: updatedName,
+                currentTach: parseFloat(updatedTach) || 0,
+                currentHobbs: parseFloat(updatedHobbs) || 0,
+            };
+            await window.dbFunctions.setDoc(planeDocRef, updates, { merge: true });
+
+            fleet = fleet.map(plane =>
+                plane.tail === currentEditingTail ? { ...plane, ...updates } : plane
+            );
+        }
+
+        renderFleet();
+        renderMaintenance();
+    } catch (error) {
+        console.error("Failed to update aircraft in the cloud:", error);
+        alert("Error saving changes to the cloud.");
     }
 
-    localStorage.setItem('myFleet', JSON.stringify(fleet));
-    renderFleet(); //REnder the fleet again
-    renderMaintenance();
-    
     editAircraftForm.reset();
     editAircraftModal.classList.remove('active');
 });
