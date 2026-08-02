@@ -55,6 +55,7 @@
   // Import the functions you need from the SDKs you need
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
   import { getFirestore, collection, addDoc, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js";
+  import { getAuth } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js";
 
   // Your web app's Firebase configuration
   const firebaseConfig = {
@@ -74,6 +75,10 @@
   // Make db and its functions available to dashboard-script.js
   window.db = db;
   window.dbFunctions = { collection, addDoc, getDocs, doc, setDoc };
+  
+   const auth = getAuth(app);
+   window.auth = auth;
+
 </script>
 
 <!-- 5. Make sure your script tag has type="module" right after it! -->
