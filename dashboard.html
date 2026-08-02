@@ -121,9 +121,10 @@
       <details class="ifr-details">
         <summary>IFR Details</summary>
         <div class="ifr-fields">
-            <input type="number" name="approaches-count" min="0" placeholder="Approach Count">
+            <input type="number" id="approachCount" name="approachCount" min="0" placeholder="Approach Count">
           
             <select name="approach-type" id="approachType">
+                <option value="null">--Select Approach Type--</option>
                 <option value="ILS">ILS</option>
                 <option value="RNAV">RNAV (GPS)</option>
                 <option value="VOR">VOR</option>
@@ -131,15 +132,16 @@
                 <option value="NDB">NDB</option>
                 <option value="LDA">LDA / SDF</option>
             </select>
+            <br>
             
             <label>Holds Logged?
-            <input type="checkbox" name="holds-logged">
+            <input type="checkbox" name="holds-logged" id="holds-logged">
             </label>
 
             <br>
 
             <label>Intercept Course?
-            <input type="checkbox" name="intercept">
+            <input type="checkbox" name="intercept" id="intercept">
             </label>
         </div>
       </details>

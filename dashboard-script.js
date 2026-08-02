@@ -18,10 +18,8 @@ async function loadFleetFromCloud() {
 
     console.log("Cloud fleet loaded successfully:", fleet);
 
-    renderFleet();           // ← actually update the UI now that data arrived
+    renderFleet();
     populateAircraftDropdown();
-    ensureMandatoryMaintenance();
-    renderMaintenance();
 
   } catch (error) {
     console.error("Error loading fleet from cloud:", error);
@@ -367,6 +365,10 @@ flightForm.addEventListener('submit', async (event) => {
   const tachEnd = parseFloat(flightForm.elements['tach-end'].value); 
   const hobbsStart = parseFloat(flightForm.elements['hobbs-start'].value); 
   const hobbsEnd = parseFloat(flightForm.elements['hobbs-end'].value); 
+  const approachCount = parseInt(flightForm.elements['approachCount'].value);
+  const approachType =(flightForm.elements['approachType'].value);
+  const holdsLogged = (flightForm.elements['holds-logged'].checked);
+  const InterceptCourse = (flightForm.elements['intercept'].checked);
   
   let loggedHours = NaN; 
   if (!isNaN(tachStart) && !isNaN(tachEnd)) { 
@@ -416,7 +418,12 @@ flightForm.addEventListener('submit', async (event) => {
     hobbsStart: !isNaN(hobbsStart) ? hobbsStart : null, 
     hobbsEnd: !isNaN(hobbsEnd) ? hobbsEnd : null, 
     command: commandRole, 
-    time: timeInput, 
+    time: timeInput,
+    approachCount: approachCount,
+    approachType: approachType,
+    holdsLogged: holdsLogged,
+    interceptCourse: InterceptCourse
+
   }; 
 
   try {
@@ -447,24 +454,42 @@ function renderFlights() {
     flightGrid.innerHTML = ''; 
     logbook.forEach(flight => { 
         const card = document.createElement('div'); 
-        card.className = 'aircraft-card'; 
-        card.innerHTML = ` 
-            <div class="aircraft-info"> 
-                <button id="${flight.id}" class="removeFlight">Remove Flight</button> 
-                <h3>${flight.origin} to ${flight.dest}</h3> 
-                <p>Date: ${flight.date} at ${flight.time}</p> 
-                <p>Tail: ${flight.tail}</p> 
-                <p>Hours: ${flight.hours}</p> 
-                <p>Position: ${flight.command}</p> 
-            </div> 
-        `; 
+        card.className = 'aircraft-card';
+        if(flight.command === "Dual"){
+            card.innerHTML = ` 
+                <div class="aircraft-info"> 
+                    <button id="${flight.id}" class="removeFlight">Remove Flight</button> 
+                    <h3>${flight.origin} to ${flight.dest}</h3> 
+                    <p>Date: ${flight.date} at ${flight.time}</p> 
+                    <p>Tail: ${flight.tail}</p> 
+                    <p>Hours: ${flight.hours}</p> 
+                    <p>Position: ${flight.command}</p>
+                    <p>Approaches: ${flight.approachCount}</p>
+                    <p>Approach Type: ${flight.approachType}</p>
+                    <p>Holds Logged: ${flight.holdsLogged}</p>
+                    <p>Intercept Coursed: ${flight.interceptCourse}</p> 
+                </div> 
+            `; 
+        }
+        else{
+            card.innerHTML = ` 
+                <div class="aircraft-info"> 
+                    <button id="${flight.id}" class="removeFlight">Remove Flight</button> 
+                    <h3>${flight.origin} to ${flight.dest}</h3> 
+                    <p>Date: ${flight.date} at ${flight.time}</p> 
+                    <p>Tail: ${flight.tail}</p> 
+                    <p>Hours: ${flight.hours}</p> 
+                    <p>Position: ${flight.command}</p> 
+                </div> 
+            `; 
+        }
         flightGrid.appendChild(card); 
     }); 
 } 
 
-flightGrid.addEventListener('click', (event) => { 
+flightGrid.addEventListener('click', async (event) => { 
     if (event.target.classList.contains('removeFlight')) { 
-        const flightIdToRemove = Number(event.target.getAttribute('id')); 
+        const flightIdToRemove = event.target.getAttribute('id'); 
         const flightToDelete = logbook.find(flight => flight.id === flightIdToRemove); 
         const flightIndex = logbook.findIndex(flight => flight.id === flightIdToRemove); 
 
@@ -477,14 +502,26 @@ flightGrid.addEventListener('click', (event) => {
                 if (flightToDelete.hobbsEnd && flightToDelete.hobbsStart) {
                     planeToUpdate.currentHobbs -= (flightToDelete.hobbsEnd - flightToDelete.hobbsStart); 
                 }
-                localStorage.setItem('myFleet', JSON.stringify(fleet)); 
+
+                // update the plane's cloud hours too, same pattern as your other setDoc calls
+                const planeDocRef = window.dbFunctions.doc(window.db, "myFleet", planeToUpdate.id);
+                await window.dbFunctions.setDoc(planeDocRef, {
+                    currentTach: planeToUpdate.currentTach,
+                    currentHobbs: planeToUpdate.currentHobbs
+                }, { merge: true });
+
                 renderFleet(); 
             } 
         } 
 
-        logbook.splice(flightIndex, 1); 
-        localStorage.setItem('myLogbook', JSON.stringify(logbook)); 
-        renderFlights();
+        if (flightIndex !== -1) {
+            // delete from Firestore, not just local state
+            const flightDocRef = window.dbFunctions.doc(window.db, "myLogbook", flightIdToRemove);
+            await window.dbFunctions.deleteDoc(flightDocRef);
+
+            logbook.splice(flightIndex, 1); 
+            renderFlights();
+        }
     } 
 });
 
@@ -563,15 +600,34 @@ function renderChecklists() {
     `;
     checklistGrid.appendChild(card2);
 
-
-
     let CFR6157c1 = 0;
     let CFR6157cString = "";
+    let CFR6157c2 = 0;
+    let CFR6157c3 = 0;
+
+    logbook.forEach(flight => {
+        if(flight.approachType !== "null" && Math.abs((new Date(flight.date) - Date.now()) / 86400000) < 180) {
+            CFR6157c1 += flight.approachCount;
+        }
+    });
+
+    logbook.forEach(flight => {
+        if(flight.holdsLogged && Math.abs((new Date(flight.date) - Date.now()) / 86400000) < 180) {
+            CFR6157c2++;
+        }
+    });
+
+    
+    logbook.forEach(flight => {
+        if(flight.interceptCourse && Math.abs((new Date(flight.date) - Date.now()) / 86400000) < 180) {
+            CFR6157c3++;
+        }
+    });
 
     const card3 = document.createElement('div');
     card3.className = 'aircraft-card';
 
-    if(CFR6157c1 > 3){
+    if(CFR6157c1 >= 6 && CFR6157c2 >= 1 && CFR6157c3 >= 1){
         CFR6157cString = '<p><strong style="color: green;">Cleared per CFR §61.57(c)</strong></p>'
     } else {
         CFR6157cString = '<p><strong style="color: red;">Not Cleared per CFR §61.57(c)</strong></p>'
@@ -579,9 +635,18 @@ function renderChecklists() {
 
     card3.innerHTML = `
         <div class="aircraft-info">
-            <label for="InstrumentApproaches">Flight Readiness:</label>
+            <p>Flight Readiness:</p>
+            <label for="InstrumentApproaches">Instrument Approaches:</label>
             <progress id="InstrumentApproaches" max='6' value='${CFR6157c1}'></progress>
-            <p>${CFR6157c1} / 3 flights</p>
+            <p>${CFR6157c1} / 6 Instrument Approaches</p>
+            <label for="HoldingProcedure">Holding Procedure:</label>
+            <progress id="HoldingProcedure" max='1' value='${CFR6157c2}'></progress>
+            <p>${CFR6157c2} / 1 Holding Procedure</p>
+            <label for="HoldingProcedure">Holding Procedure:</label>
+            <progress id="HoldingProcedure" max='1' value='${CFR6157c3}'></progress>
+            <p>${CFR6157c3} / 1 Holding Procedure</p>
+
+            
             ${CFR6157cString}
         </div>
     `;
@@ -598,32 +663,6 @@ commandDrop.addEventListener('change', (e) => {
 });
 
 let maintenance = [];
-
-// Function to fetch the fleet from the cloud
-async function loadMaintFromCloud() {
-  try {
-    const fleetCollection = window.dbFunctions.collection(window.db, "myMaintenance");
-    const snapshot = await window.dbFunctions.getDocs(fleetCollection);
-    
-    // Clear and rebuild the local array with cloud data
-    maintenance = snapshot.docs.map(doc => ({
-      id: doc.id,         // Keeps track of Firebase's unique ID for each plane
-      ...doc.data()       // Spreads out your original item properties
-    }));
-
-    console.log("Cloud maint loaded successfully:", fleet);
-    
-    // CRITICAL: Call whatever function you use to display the UI here!
-    // Example: renderFleetUI(); 
-
-  } catch (error) {
-    console.error("Error loading maint from cloud:", error);
-  }
-}
-
-// Call the function immediately to fetch your data on page load
-loadMaintFromCloud();
-
 
 if (!Array.isArray(maintenance)) {
     maintenance = [];//If no array for maintenance, let it be blank
@@ -806,6 +845,32 @@ const MANDATORY_ITEMS = [
     { type: 'ELT Battery', description: 'ELT Battery/Inspection', intervalType: 'calendar', intervalValue: 12 },
 ];
 
+async function loadMaintFromCloud() {
+  try {
+    const maintCollection = window.dbFunctions.collection(window.db, "myMaintenance");
+    const snapshot = await window.dbFunctions.getDocs(maintCollection);
+    maintenance = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    console.log("Cloud maintenance loaded successfully:", maintenance);
+  } catch (error) {
+    console.error("Error loading maintenance from cloud:", error);
+  }
+}
+
+// New: one init routine that guarantees ordering
+async function initApp() {
+  console.log("Starting loads...");
+  await Promise.all([loadFleetFromCloud(), loadMaintFromCloud()]);
+  console.log("Both loaded. Maintenance count before ensure:", maintenance.length);
+
+  renderFleet();
+  populateAircraftDropdown();
+  await ensureMandatoryMaintenance();
+  console.log("Maintenance count after ensure:", maintenance.length);
+  renderMaintenance();
+}
+
+initApp();
+
 // 1. Made 'async' so we can save missing items to the cloud
 async function ensureMandatoryMaintenance() { 
   // We use a for...of loop here instead of forEach so 'await' works correctly
@@ -928,6 +993,42 @@ document.getElementById('intervalTypeDrop').addEventListener('change', (e) => {
         calendarContainer.style.display = '';    // Show calendar block
     }
 });
+
+async function cleanupDuplicateMaintenance() {
+  const maintCollection = window.dbFunctions.collection(window.db, "myMaintenance");
+  const snapshot = await window.dbFunctions.getDocs(maintCollection);
+
+  const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  console.log(`Found ${docs.length} total maintenance docs.`);
+
+  const seen = new Map(); // key: `${tail}__${type}`, value: id of the one we're keeping
+  const toDelete = [];
+
+  for (const doc of docs) {
+    const key = `${doc.tail}__${doc.type}`;
+
+    // Only dedupe mandatory items — leave Custom items alone,
+    // since a plane can legitimately have multiple custom entries
+    if (doc.type === 'Custom') continue;
+
+    if (seen.has(key)) {
+      toDelete.push(doc.id);
+    } else {
+      seen.set(key, doc.id);
+    }
+  }
+
+  console.log(`Keeping ${seen.size} mandatory items, deleting ${toDelete.length} duplicates.`);
+
+  for (const id of toDelete) {
+    const ref = window.dbFunctions.doc(window.db, "myMaintenance", id);
+    await window.dbFunctions.deleteDoc(ref);
+  }
+
+  console.log("Cleanup done. Reload the page to see the corrected list.");
+}
+
+cleanupDuplicateMaintenance();
 
 
 ensureMandatoryMaintenance();
