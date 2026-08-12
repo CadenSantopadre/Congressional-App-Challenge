@@ -3,10 +3,43 @@ const openAddBtn = document.getElementById('openAdd');
 let currentEditingTail;
 let fleet = [];
 
+import {
+    onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js";
+
+onAuthStateChanged(window.auth, async (user) => {
+
+    if (!user) {
+        // Nobody is logged in
+        window.location.href = "login.html";
+        return;
+    }
+
+    console.log("Logged in user:", user);
+    console.log("UID:", user.uid);
+    console.log("Email:", user.email);
+    console.log("Name:", user.displayName);
+
+    await initApp();
+});
+
 // Function to fetch the fleet from the cloud
 async function loadFleetFromCloud() {
   try {
-    const fleetCollection = window.dbFunctions.collection(window.db, "myFleet");
+    const user = window.auth.currentUser;
+
+    if (!user) {
+      console.log("No user is signed in.");
+      return;
+    }
+
+    const fleetCollection = window.dbFunctions.collection(
+      window.db,
+      "users",
+      user.uid,
+      "fleet"
+    );
+
     const snapshot = await window.dbFunctions.getDocs(fleetCollection);
 
     fleet = snapshot.docs.map(doc => ({
@@ -304,31 +337,62 @@ const flightForm = document.getElementById('flightForm');
 const flightGrid = document.getElementById('flightGrid'); 
 
 let logbook = [];
+const flight = {
+  tail: selectedTail,
+  date: dateInput,
+  origin: originInput,
+  destination: destInput,
+  commandRole: commandRole,
+  time: timeInput,
 
+  tachStart: tachStart,
+  tachEnd: tachEnd,
+
+  hobbsStart: hobbsStart,
+  hobbsEnd: hobbsEnd,
+
+  approachCount: approachCount,
+  approachType: approachType,
+
+  holdsLogged: holdsLogged,
+  interceptCourse: InterceptCourse
+};
 // Function to fetch the fleet from the cloud
-async function loadLogbookFromCloud() {
+async function loadFlightsFromCloud() {
   try {
-    const fleetCollection = window.dbFunctions.collection(window.db, "myLogbook");
-    const snapshot = await window.dbFunctions.getDocs(fleetCollection);
-    
-    // Clear and rebuild the local array with cloud data
-    logbook = snapshot.docs.map(doc => ({
-      id: doc.id,         // Keeps track of Firebase's unique ID for each plane
-      ...doc.data()       // Spreads out your original item properties
+    const user = window.auth.currentUser;
+
+    if (!user) {
+      console.log("No user signed in.");
+      return;
+    }
+
+    const flightsCollection = window.dbFunctions.collection(
+      window.db,
+      "users",
+      user.uid,
+      "flights"
+    );
+
+    const snapshot =
+      await window.dbFunctions.getDocs(flightsCollection);
+
+    flights = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
     }));
 
-    console.log("Cloud logbook loaded successfully:", fleet);
-    
-    // CRITICAL: Call whatever function you use to display the UI here!
-    // Example: renderFleetUI(); 
+    console.log("Cloud logbook loaded:", flights);
+
+    renderLogbook();
 
   } catch (error) {
-    console.error("Error loading logbook from cloud:", error);
+    console.error("Error loading logbook:", error);
   }
 }
 
 // Call the function immediately to fetch your data on page load
-loadLogbookFromCloud();
+loadFlightsFromCloud();
 
 
 function populateAircraftDropdown() { 
@@ -642,8 +706,8 @@ function renderChecklists() {
             <label for="HoldingProcedure">Holding Procedure:</label>
             <progress id="HoldingProcedure" max='1' value='${CFR6157c2}'></progress>
             <p>${CFR6157c2} / 1 Holding Procedure</p>
-            <label for="HoldingProcedure">Holding Procedure:</label>
-            <progress id="HoldingProcedure" max='1' value='${CFR6157c3}'></progress>
+            <label for="InstrumentApproach">Instrument Approach:</label>
+            <progress id="InstrumentApproach" max='1' value='${CFR6157c3}'></progress>
             <p>${CFR6157c3} / 1 Holding Procedure</p>
 
             
@@ -847,12 +911,39 @@ const MANDATORY_ITEMS = [
 
 async function loadMaintFromCloud() {
   try {
-    const maintCollection = window.dbFunctions.collection(window.db, "myMaintenance");
-    const snapshot = await window.dbFunctions.getDocs(maintCollection);
-    maintenance = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    console.log("Cloud maintenance loaded successfully:", maintenance);
+    const user = window.auth.currentUser;
+
+    if (!user) {
+      console.log("No user signed in.");
+      return;
+    }
+
+    const maintCollection =
+      window.dbFunctions.collection(
+        window.db,
+        "users",
+        user.uid,
+        "maintenance"
+      );
+
+    const snapshot =
+      await window.dbFunctions.getDocs(maintCollection);
+
+    maintenance = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    console.log(
+      "Cloud maintenance loaded successfully:",
+      maintenance
+    );
+
   } catch (error) {
-    console.error("Error loading maintenance from cloud:", error);
+    console.error(
+      "Error loading maintenance:",
+      error
+    );
   }
 }
 
@@ -872,42 +963,79 @@ async function initApp() {
 initApp();
 
 // 1. Made 'async' so we can save missing items to the cloud
-async function ensureMandatoryMaintenance() { 
-  // We use a for...of loop here instead of forEach so 'await' works correctly
+async function ensureMandatoryMaintenance() {
+
+  const user = window.auth.currentUser;
+
+  if (!user) {
+    console.error("Cannot create maintenance: no user signed in.");
+    return;
+  }
+
+  const maintCollection =
+    window.dbFunctions.collection(
+      window.db,
+      "users",
+      user.uid,
+      "maintenance"
+    );
+
   for (const plane of fleet) {
+
     for (const template of MANDATORY_ITEMS) {
-      const exists = maintenance.some(item => item.tail === plane.tail && item.type === template.type); 
-      
-      if (!exists) { 
+
+      const exists = maintenance.some(
+        item =>
+          item.tail === plane.tail &&
+          item.type === template.type
+      );
+
+      if (!exists) {
+
         const newMandatoryItem = {
-          tail: plane.tail, 
-          type: template.type, 
-          description: template.description, 
-          intervalType: template.intervalType, 
-          intervalValue: template.intervalValue, 
-          lastDoneHours: template.intervalType === 'hours' ? 0 : null, 
-          lastDoneDate: template.intervalType === 'calendar' ? new Date().toISOString().split('T')[0] : null, 
-          isMandatory: true 
+          tail: plane.tail,
+          type: template.type,
+          description: template.description,
+          intervalType: template.intervalType,
+          intervalValue: template.intervalValue,
+
+          lastDoneHours:
+            template.intervalType === 'hours'
+              ? 0
+              : null,
+
+          lastDoneDate:
+            template.intervalType === 'calendar'
+              ? new Date().toISOString().split('T')[0]
+              : null,
+
+          isMandatory: true
         };
 
         try {
-          // 2. Save directly to the cloud "myMaintenance" collection
-          const maintCollection = window.dbFunctions.collection(window.db, "myMaintenance");
-          const docRef = await window.dbFunctions.addDoc(maintCollection, newMandatoryItem);
 
-          // 3. Push to your local array with the cloud ID
-          maintenance.push({ 
-            id: docRef.id, 
-            ...newMandatoryItem 
+          const docRef =
+            await window.dbFunctions.addDoc(
+              maintCollection,
+              newMandatoryItem
+            );
+
+          maintenance.push({
+            id: docRef.id,
+            ...newMandatoryItem
           });
+
         } catch (error) {
-          console.error("Error creating mandatory check in cloud:", error);
+
+          console.error(
+            "Error creating mandatory check:",
+            error
+          );
+
         }
-      } 
+      }
     }
-  } 
-  
-  // 4. Removed the old localStorage line—the local array is now fully updated and synced!
+  }
 }
 
 
