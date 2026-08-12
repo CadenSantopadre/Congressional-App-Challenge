@@ -2,31 +2,21 @@ const aircraftGrid = document.getElementById('aircraftGrid');
 const openAddBtn = document.getElementById('openAdd');
 let currentEditingTail;
 let fleet = [];
+let maintenance = [];
+let logbook = [];
+let currentUser = null;
 
 import {
-    onAuthStateChanged
+    onAuthStateChanged, getAuth
 } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js";
 
-onAuthStateChanged(window.auth, async (user) => {
-
-    if (!user) {
-        // Nobody is logged in
-        window.location.href = "login.html";
-        return;
-    }
-
-    console.log("Logged in user:", user);
-    console.log("UID:", user.uid);
-    console.log("Email:", user.email);
-    console.log("Name:", user.displayName);
-
-    await initApp();
-});
+const auth = getAuth();
+window.auth = auth;
 
 // Function to fetch the fleet from the cloud
 async function loadFleetFromCloud() {
   try {
-    const user = window.auth.currentUser;
+    const user = currentUser;
 
     if (!user) {
       console.log("No user is signed in.");
@@ -59,8 +49,7 @@ async function loadFleetFromCloud() {
   }
 }
 
-loadFleetFromCloud();
-//Get the fleet from localstorage, otherwise it's empty
+// Get the fleet from localstorage, otherwise it's empty
 
 fleet = fleet.map(plane => ({
     ...plane, //Copy from plane(in const newPlane)
@@ -91,7 +80,12 @@ async function addAircraft(tailNumber, nameType, tachCreation, hobbsCreation) {
 
   try {
     // 3. Save the plane data directly to your Firestore cloud collection
-    const fleetCollection = window.dbFunctions.collection(window.db, "myFleet");
+    const user = currentUser;
+    if (!user) {
+      throw new Error('No authenticated user available when saving aircraft.');
+    }
+
+    const fleetCollection = window.dbFunctions.collection(window.db, "users", user.uid, "fleet");
     const docRef = await window.dbFunctions.addDoc(fleetCollection, newPlane);
 
     // 4. Push to your local array, but include the new cloud ID
@@ -214,7 +208,11 @@ editAircraftForm.addEventListener('submit', async (event) => {
     if (!planeToEdit) return;
 
     try {
-        const planeDocRef = window.dbFunctions.doc(window.db, "myFleet", planeToEdit.id);
+        const user = currentUser;
+        if (!user) {
+          throw new Error('No authenticated user available when updating aircraft.');
+        }
+        const planeDocRef = window.dbFunctions.doc(window.db, "users", user.uid, "fleet", planeToEdit.id);
 
         if (!updatedTail && !updatedName && !updatedTach && !updatedHobbs) {
             // Blank form = delete this aircraft from Firestore
@@ -336,31 +334,10 @@ const closeFlightBtn = document.getElementById('closeFlightBtn');
 const flightForm = document.getElementById('flightForm'); 
 const flightGrid = document.getElementById('flightGrid'); 
 
-let logbook = [];
-const flight = {
-  tail: selectedTail,
-  date: dateInput,
-  origin: originInput,
-  destination: destInput,
-  commandRole: commandRole,
-  time: timeInput,
-
-  tachStart: tachStart,
-  tachEnd: tachEnd,
-
-  hobbsStart: hobbsStart,
-  hobbsEnd: hobbsEnd,
-
-  approachCount: approachCount,
-  approachType: approachType,
-
-  holdsLogged: holdsLogged,
-  interceptCourse: InterceptCourse
-};
 // Function to fetch the fleet from the cloud
 async function loadFlightsFromCloud() {
   try {
-    const user = window.auth.currentUser;
+    const user = currentUser;
 
     if (!user) {
       console.log("No user signed in.");
@@ -377,22 +354,20 @@ async function loadFlightsFromCloud() {
     const snapshot =
       await window.dbFunctions.getDocs(flightsCollection);
 
-    flights = snapshot.docs.map(doc => ({
+    logbook = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }));
 
-    console.log("Cloud logbook loaded:", flights);
+    console.log("Cloud logbook loaded:", logbook);
 
-    renderLogbook();
+    renderFlights();
 
   } catch (error) {
     console.error("Error loading logbook:", error);
   }
 }
 
-// Call the function immediately to fetch your data on page load
-loadFlightsFromCloud();
 
 
 function populateAircraftDropdown() { 
@@ -455,7 +430,11 @@ flightForm.addEventListener('submit', async (event) => {
 
     try {
       // Create a reference directly to this specific plane's cloud file using its unique ID
-      const planeDocRef = window.dbFunctions.doc(window.db, "myFleet", planeToUpdate.id);
+      const user = currentUser;
+      if (!user) {
+        throw new Error('No authenticated user available when updating aircraft hours.');
+      }
+      const planeDocRef = window.dbFunctions.doc(window.db, "users", user.uid, "fleet", planeToUpdate.id);
       
       // Update just the hour metrics on the server
       await window.dbFunctions.setDoc(planeDocRef, {
@@ -491,9 +470,12 @@ flightForm.addEventListener('submit', async (event) => {
   }; 
 
   try {
-    // Save flight data into a brand-new cloud collection called "myLogbook"
-    const logbookCollection = window.dbFunctions.collection(window.db, "myLogbook");
-    const docRef = await window.dbFunctions.addDoc(logbookCollection, newFlight);
+      const user = currentUser;
+      if (!user) {
+        throw new Error('No authenticated user available when saving flight log.');
+      }
+      const logbookCollection = window.dbFunctions.collection(window.db, "users", user.uid, "flights");
+      const docRef = await window.dbFunctions.addDoc(logbookCollection, newFlight);
 
     // Push to your local logbook array incorporating the new cloud ID
     logbook.push({
@@ -568,7 +550,11 @@ flightGrid.addEventListener('click', async (event) => {
                 }
 
                 // update the plane's cloud hours too, same pattern as your other setDoc calls
-                const planeDocRef = window.dbFunctions.doc(window.db, "myFleet", planeToUpdate.id);
+                const user = currentUser;
+                if (!user) {
+                  throw new Error('No authenticated user available when removing flight.');
+                }
+                const planeDocRef = window.dbFunctions.doc(window.db, "users", user.uid, "fleet", planeToUpdate.id);
                 await window.dbFunctions.setDoc(planeDocRef, {
                     currentTach: planeToUpdate.currentTach,
                     currentHobbs: planeToUpdate.currentHobbs
@@ -580,7 +566,11 @@ flightGrid.addEventListener('click', async (event) => {
 
         if (flightIndex !== -1) {
             // delete from Firestore, not just local state
-            const flightDocRef = window.dbFunctions.doc(window.db, "myLogbook", flightIdToRemove);
+            const user = currentUser;
+            if (!user) {
+              throw new Error('No authenticated user available when deleting flight.');
+            }
+            const flightDocRef = window.dbFunctions.doc(window.db, "users", user.uid, "flights", flightIdToRemove);
             await window.dbFunctions.deleteDoc(flightDocRef);
 
             logbook.splice(flightIndex, 1); 
@@ -725,8 +715,6 @@ commandDrop.addEventListener('change', (e) => {
     ifrDetails.open = true; 
   }
 });
-
-let maintenance = [];
 
 if (!Array.isArray(maintenance)) {
     maintenance = [];//If no array for maintenance, let it be blank
@@ -911,7 +899,7 @@ const MANDATORY_ITEMS = [
 
 async function loadMaintFromCloud() {
   try {
-    const user = window.auth.currentUser;
+    const user = currentUser;
 
     if (!user) {
       console.log("No user signed in.");
@@ -950,7 +938,7 @@ async function loadMaintFromCloud() {
 // New: one init routine that guarantees ordering
 async function initApp() {
   console.log("Starting loads...");
-  await Promise.all([loadFleetFromCloud(), loadMaintFromCloud()]);
+  await Promise.all([loadFleetFromCloud(), loadMaintFromCloud(), loadFlightsFromCloud()]);
   console.log("Both loaded. Maintenance count before ensure:", maintenance.length);
 
   renderFleet();
@@ -960,12 +948,24 @@ async function initApp() {
   renderMaintenance();
 }
 
-initApp();
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    console.log("Nobody is signed in.");
+    window.location.href = "login.html";
+    return;
+  }
+
+  currentUser = user;
+  console.log("Logged in:", user.email);
+  console.log("UID:", user.uid);
+
+  await initApp();
+});
 
 // 1. Made 'async' so we can save missing items to the cloud
 async function ensureMandatoryMaintenance() {
 
-  const user = window.auth.currentUser;
+  const user = currentUser;
 
   if (!user) {
     console.error("Cannot create maintenance: no user signed in.");
@@ -1087,7 +1087,11 @@ maintenanceForm.addEventListener('submit', async (event) => {
 
   try {
     // 2. Save custom log to Firestore
-    const maintCollection = window.dbFunctions.collection(window.db, "myMaintenance");
+    const user = currentUser;
+    if (!user) {
+      throw new Error('No authenticated user available when saving maintenance item.');
+    }
+    const maintCollection = window.dbFunctions.collection(window.db, "users", user.uid, "maintenance");
     const docRef = await window.dbFunctions.addDoc(maintCollection, newCustomMaint);
 
     // 3. Push to local array using the cloud ID
@@ -1110,8 +1114,8 @@ maintenanceForm.addEventListener('submit', async (event) => {
 
 
 document.getElementById('intervalTypeDrop').addEventListener('change', (e) => {
-    const hoursContainer = editMaintenanceForm.querySelector('.hours-done');
-    const calendarContainer = editMaintenanceForm.querySelector('.date-done');
+    const hoursContainer = maintenanceForm.querySelector('.hours-done');
+    const calendarContainer = maintenanceForm.querySelector('.date-done');
 
     if (e.target.value === 'hours') {
         hoursContainer.style.display = '';       // Show hours block
@@ -1123,7 +1127,12 @@ document.getElementById('intervalTypeDrop').addEventListener('change', (e) => {
 });
 
 async function cleanupDuplicateMaintenance() {
-  const maintCollection = window.dbFunctions.collection(window.db, "myMaintenance");
+  const user = currentUser;
+  if (!user) {
+    console.log('Cannot run maintenance cleanup before login.');
+    return;
+  }
+  const maintCollection = window.dbFunctions.collection(window.db, "users", user.uid, "maintenance");
   const snapshot = await window.dbFunctions.getDocs(maintCollection);
 
   const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -1149,15 +1158,9 @@ async function cleanupDuplicateMaintenance() {
   console.log(`Keeping ${seen.size} mandatory items, deleting ${toDelete.length} duplicates.`);
 
   for (const id of toDelete) {
-    const ref = window.dbFunctions.doc(window.db, "myMaintenance", id);
+    const ref = window.dbFunctions.doc(window.db, "users", user.uid, "maintenance", id);
     await window.dbFunctions.deleteDoc(ref);
   }
 
   console.log("Cleanup done. Reload the page to see the corrected list.");
 }
-
-cleanupDuplicateMaintenance();
-
-
-ensureMandatoryMaintenance();
-renderMaintenance();
